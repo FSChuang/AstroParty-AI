@@ -8,7 +8,10 @@
 #include "astroparty/entities/Bullet.hpp"
 #include "astroparty/entities/Ship.hpp"
 
+using astroparty::core::ObstacleDefinition;
+using astroparty::core::resolveBulletObstacleCollisions;
 using astroparty::core::resolveShipBulletCollisions;
+using astroparty::core::resolveShipObstacleCollisions;
 using astroparty::core::SimulationConfig;
 using astroparty::core::Vector2;
 using astroparty::entities::Bullet;
@@ -86,6 +89,64 @@ TEST_SUITE("resolveShipBulletCollisions") {
         resolveShipBulletCollisions(ships, bullets, /*shipCollisionRadius=*/5.0f);
 
         CHECK(ships[0].isAlive());
+        CHECK_FALSE(bullets[0].isExpired());
+    }
+}
+
+TEST_SUITE("resolveShipObstacleCollisions") {
+    TEST_CASE("a ship overlapping an obstacle is pushed outside it") {
+        std::vector<Ship> ships;
+        ships.emplace_back(0, Vector2{105.0f, 100.0f}, 0.0f);  // 5 units from an obstacle of radius 20
+        std::vector<ObstacleDefinition> obstacles{{Vector2{100.0f, 100.0f}, 20.0f}};
+
+        resolveShipObstacleCollisions(ships, obstacles, kCollisionRadius);
+
+        const float expectedDistance = kCollisionRadius + 20.0f;
+        CHECK(astroparty::core::distanceSquared(ships[0].position(), Vector2{100.0f, 100.0f}) ==
+              doctest::Approx(expectedDistance * expectedDistance));
+    }
+
+    TEST_CASE("a ship far from every obstacle is left in place") {
+        std::vector<Ship> ships;
+        ships.emplace_back(0, Vector2{0.0f, 0.0f}, 0.0f);
+        std::vector<ObstacleDefinition> obstacles{{Vector2{10000.0f, 10000.0f}, 20.0f}};
+
+        resolveShipObstacleCollisions(ships, obstacles, kCollisionRadius);
+
+        CHECK(ships[0].position() == Vector2{0.0f, 0.0f});
+    }
+
+    TEST_CASE("an eliminated ship is not pushed by an obstacle it overlaps") {
+        std::vector<Ship> ships;
+        ships.emplace_back(0, Vector2{105.0f, 100.0f}, 0.0f);
+        ships[0].eliminate();
+        const Vector2 positionBeforeResolution = ships[0].position();
+        std::vector<ObstacleDefinition> obstacles{{Vector2{100.0f, 100.0f}, 20.0f}};
+
+        resolveShipObstacleCollisions(ships, obstacles, kCollisionRadius);
+
+        CHECK(ships[0].position() == positionBeforeResolution);
+    }
+}
+
+TEST_SUITE("resolveBulletObstacleCollisions") {
+    TEST_CASE("a bullet overlapping an obstacle expires immediately") {
+        std::vector<Bullet> bullets;
+        bullets.emplace_back(0, Vector2{105.0f, 100.0f}, 0.0f, kDefaultConfig);
+        std::vector<ObstacleDefinition> obstacles{{Vector2{100.0f, 100.0f}, 20.0f}};
+
+        resolveBulletObstacleCollisions(bullets, obstacles);
+
+        CHECK(bullets[0].isExpired());
+    }
+
+    TEST_CASE("a bullet far from every obstacle is unaffected") {
+        std::vector<Bullet> bullets;
+        bullets.emplace_back(0, Vector2{0.0f, 0.0f}, 0.0f, kDefaultConfig);
+        std::vector<ObstacleDefinition> obstacles{{Vector2{10000.0f, 10000.0f}, 20.0f}};
+
+        resolveBulletObstacleCollisions(bullets, obstacles);
+
         CHECK_FALSE(bullets[0].isExpired());
     }
 }

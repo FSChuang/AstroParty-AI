@@ -17,6 +17,13 @@ void requirePositive(float value, const char* fieldName) {
     }
 }
 
+GameMode gameModeFromString(const std::string& text) {
+    if (text == "ClassicDeathmatch") return GameMode::ClassicDeathmatch;
+    if (text == "TeamResourceBattle") return GameMode::TeamResourceBattle;
+    throw std::invalid_argument("SimulationConfig.mode must be \"ClassicDeathmatch\" or \"TeamResourceBattle\" (got \"" +
+                                 text + "\")");
+}
+
 }  // namespace
 
 void SimulationConfig::validate() const {
@@ -40,6 +47,11 @@ void SimulationConfig::validate() const {
     if (shipCollisionRadius * 2.0f >= arenaSize.x || shipCollisionRadius * 2.0f >= arenaSize.y) {
         throw std::invalid_argument("SimulationConfig.shipCollisionRadius is too large for arenaSize");
     }
+    requirePositive(static_cast<float>(winningScore), "winningScore");
+    if (respawnDelayTicks < 0) {
+        throw std::invalid_argument("SimulationConfig.respawnDelayTicks must not be negative");
+    }
+    requirePositive(resourcePickupRadius, "resourcePickupRadius");
 }
 
 SimulationConfig SimulationConfig::loadFromFile(const std::filesystem::path& path) {
@@ -76,6 +88,10 @@ SimulationConfig SimulationConfig::loadFromFile(const std::filesystem::path& pat
     if (json.contains("bulletLifetimeSeconds")) config.bulletLifetimeSeconds = json.at("bulletLifetimeSeconds").get<float>();
     if (json.contains("bulletSpawnOffset")) config.bulletSpawnOffset = json.at("bulletSpawnOffset").get<float>();
     if (json.contains("maxMatchTicks")) config.maxMatchTicks = json.at("maxMatchTicks").get<int>();
+    if (json.contains("mode")) config.mode = gameModeFromString(json.at("mode").get<std::string>());
+    if (json.contains("winningScore")) config.winningScore = json.at("winningScore").get<int>();
+    if (json.contains("respawnDelayTicks")) config.respawnDelayTicks = json.at("respawnDelayTicks").get<int>();
+    if (json.contains("resourcePickupRadius")) config.resourcePickupRadius = json.at("resourcePickupRadius").get<float>();
 
     config.validate();
     return config;

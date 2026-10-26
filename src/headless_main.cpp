@@ -14,19 +14,30 @@
 #include <string>
 #include <vector>
 
+#include "astroparty/ai/TeamControllerFactory.hpp"
+#include "astroparty/core/GameMode.hpp"
 #include "astroparty/core/MapDefinition.hpp"
 #include "astroparty/core/SimulationConfig.hpp"
 #include "astroparty/core/World.hpp"
 #include "astroparty/headless/MatchRunner.hpp"
+#include "astroparty/headless/TeamMatchRunner.hpp"
 #include "astroparty/input/ScriptedShipController.hpp"
 
 namespace {
 
+// Which strategy a team uses in a Team Resource Battle headless run.
+// "strategic" is this project's real strategic AI (UtilityTeamStrategy);
+// "baseline" is the simpler fixed-role opponent (BaselineTeamStrategy) --
+// see docs/ARCHITECTURE.md's "Baseline opponent" section. Choosing the same
+// value for both teams runs Strategic-vs-Strategic or Baseline-vs-Baseline;
+// choosing different values runs the primary Strategic-vs-Baseline evaluation.
 struct CommandLineOptions {
     std::optional<std::string> configPath;
     std::optional<std::string> mapPath;
     int maxTicks = 3600;  // 60 seconds of simulated time at the default 60 Hz tick rate.
     std::optional<std::string> outputPath;
+    std::string team0Strategy = "strategic";
+    std::string team1Strategy = "baseline";
 };
 
 CommandLineOptions parseCommandLine(int argc, char** argv) {
@@ -43,6 +54,10 @@ CommandLineOptions parseCommandLine(int argc, char** argv) {
             options.maxTicks = std::stoi(argv[++i]);
         } else if (argument == "--output" && hasNext) {
             options.outputPath = argv[++i];
+        } else if (argument == "--team0-strategy" && hasNext) {
+            options.team0Strategy = argv[++i];
+        } else if (argument == "--team1-strategy" && hasNext) {
+            options.team1Strategy = argv[++i];
         } else {
             throw std::invalid_argument("Unrecognized or incomplete argument: " + argument);
         }
@@ -84,10 +99,18 @@ int main(int argc, char** argv) {
                                                           : astroparty::core::MapDefinition::defaultTwoShipMap();
 
         astroparty::core::World world(config, map);
-        auto controllers = makeDefaultControllers(world.ships().size());
 
-        const astroparty::headless::MatchResult result = astroparty::headless::runMatch(world, controllers, options.maxTicks);
-        const std::string json = result.toJsonString();
+        std::string json;
+        if (world.mode() == astroparty::core::GameMode::TeamResourceBattle) {
+            auto controllers = astroparty::ai::makeTeamControllers(world, options.team0Strategy, options.team1Strategy);
+            const astroparty::headless::TeamMatchResult result =
+                astroparty::headless::runTeamMatch(world, controllers, options.maxTicks);
+            json = result.toJsonString();
+        } else {
+            auto controllers = makeDefaultControllers(world.ships().size());
+            const astroparty::headless::MatchResult result = astroparty::headless::runMatch(world, controllers, options.maxTicks);
+            json = result.toJsonString();
+        }
 
         if (options.outputPath) {
             std::ofstream outputFile(*options.outputPath);

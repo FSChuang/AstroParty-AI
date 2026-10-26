@@ -1,0 +1,17 @@
+{
+  "arenaWidth": 1280.0,
+  "arenaHeight": 720.0,
+  "tickRateHz": 60.0,
+  "shipAccelerationUnitsPerSecondSquared": 18.0,
+  "shipMaxSpeedUnitsPerSecond": 240.0,
+  "shipTurnRateDegreesPerSecond": 300.0,
+  "shipCollisionRadius": 18.0,
+  "bulletSpeedUnitsPerSecond": 480.0,
+  "bulletLifetimeSeconds": 3.0,
+  "bulletSpawnOffset": 28.0,
+  "maxMatchTicks": 3600,
+  "mode": "TeamResourceBattle",
+  "winningScore": 5,
+  "respawnDelayTicks": 180,
+  "resourcePickupRadius": 24.0
+}

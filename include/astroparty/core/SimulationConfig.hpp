@@ -2,6 +2,7 @@
 
 #include <filesystem>
 
+#include "astroparty/core/GameMode.hpp"
 #include "astroparty/core/Vector2.hpp"
 
 namespace astroparty::core {
@@ -13,7 +14,7 @@ namespace astroparty::core {
 // The default values below exactly reproduce Milestone 1's original
 // hardcoded behavior. They are derived from upstream CAstroParty's per-tick
 // constants at an implicit 60 Hz; see
-// astro-party-workspace/audit/03_code_architecture.md (sections 3-6) for the
+// docs/UPSTREAM_AUDIT.md (sections 3, 4, and 6) for the
 // upstream values and docs/ARCHITECTURE.md for the unit conversion. Changing
 // these is now a configuration decision, not a code change.
 struct SimulationConfig {
@@ -33,16 +34,43 @@ struct SimulationConfig {
     // affects where a bullet first appears, not collision outcomes.
     float bulletSpawnOffset = 28.0f;
 
-    // 0 means "no limit," appropriate for the graphical app, where a human
-    // ends the session by closing the window. A headless run always
-    // supplies an explicit positive cap (see headless::runMatch).
+    // 0 means "no limit," appropriate for the graphical app in Classic
+    // Deathmatch, where a human ends the session by closing the window. A
+    // headless run always supplies an explicit positive cap (see
+    // headless::runMatch). Team Resource Battle also uses this as its match
+    // timer: see winningScore below.
     int maxMatchTicks = 0;
+
+    // Which rule set World runs -- see GameMode.hpp. Defaults to Classic
+    // Deathmatch, the original two-player mode, so existing code and maps
+    // that never mention a mode are unaffected.
+    GameMode mode = GameMode::ClassicDeathmatch;
+
+    // Team Resource Battle only, below. Harmless (simply unused) in
+    // Classic Deathmatch, so they are validated unconditionally rather than
+    // only when mode == TeamResourceBattle -- that keeps validate() simple
+    // and still catches a nonsensical value regardless of which mode a
+    // caller later selects.
+
+    // First team to reach this many delivered resources wins outright. If
+    // maxMatchTicks elapses first (and is > 0), the higher-scoring team
+    // wins instead; equal scores at that point is a draw.
+    int winningScore = 3;
+
+    // How many ticks an eliminated ship waits before respawning at its
+    // original spawn point. 180 ticks = 3 seconds at the default 60 Hz.
+    int respawnDelayTicks = 180;
+
+    // A ship not already carrying a resource automatically picks up any
+    // available (AtSpawn) Energy Core within this distance.
+    float resourcePickupRadius = 24.0f;
 
     [[nodiscard]] float fixedDeltaSeconds() const { return 1.0f / tickRateHz; }
 
     // Throws std::invalid_argument, naming the offending field, if any
     // value is physically nonsensical (non-positive size, speed, rate, or
-    // tick rate).
+    // tick rate; non-positive winningScore or resourcePickupRadius;
+    // negative respawnDelayTicks).
     void validate() const;
 
     // Parses a SimulationConfig from a JSON file. Fields absent from the

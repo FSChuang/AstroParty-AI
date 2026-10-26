@@ -7,7 +7,7 @@ namespace astroparty::physics {
 // Confines `position` to an arena of size `arenaSize`, keeping it at least
 // `margin` away from every edge. Used to keep a ship's circular silhouette
 // fully inside the playfield, mirroring upstream's Vector_clamp() call in
-// Player_update (astro-party-workspace/audit/03_code_architecture.md,
+// Player_update (docs/UPSTREAM_AUDIT.md,
 // section 4).
 //
 // Precondition: arenaSize.x > 2 * margin and arenaSize.y > 2 * margin, i.e.

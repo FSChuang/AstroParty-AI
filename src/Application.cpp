@@ -3,10 +3,14 @@
 #include <SDL2/SDL.h>
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <string>
 
+#include "astroparty/ai/TeamControllerFactory.hpp"
+#include "astroparty/core/MapDefinition.hpp"
+#include "astroparty/core/SimulationConfig.hpp"
 #include "astroparty/input/KeyboardShipController.hpp"
 
 namespace astroparty {
@@ -26,22 +30,41 @@ constexpr double kFixedTimestepSeconds = 1.0 / 60.0;
 // cannot force a burst of hundreds of simulation steps once control returns.
 constexpr double kMaxAccumulatedSeconds = 0.25;
 
+// Classic Deathmatch keeps Milestone 1's exact built-in two-corner map;
+// Team Resource Battle loads the config/map the caller selected (or their
+// checked-in defaults -- see ApplicationOptions).
+core::World buildWorld(const ApplicationOptions& options) {
+    if (options.mode == core::GameMode::ClassicDeathmatch) {
+        return core::World();
+    }
+    const core::SimulationConfig config = core::SimulationConfig::loadFromFile(options.configPath);
+    const core::MapDefinition map = core::MapDefinition::loadFromFile(options.mapPath);
+    return core::World(config, map);
+}
+
 }  // namespace
 
-Application::Application()
+Application::Application(ApplicationOptions options)
     : sdlLibrary_(SDL_INIT_VIDEO | SDL_INIT_EVENTS),
       window_("AstroParty-AI", kWindowWidth, kWindowHeight),
       renderer_(window_),
       gameRenderer_(renderer_),
-      world_() {
-    // Player 1 uses the left-hand WASD cluster; Player 2 uses the arrow keys,
-    // so both players have a disjoint set of keys on the same keyboard.
-    // Upstream read mouse clicks for a single local player (see
-    // astro-party-workspace/audit/03_code_architecture.md, section 8); two
-    // simultaneous local players need two independent input sources instead.
-    shipControllers_.push_back(std::make_unique<input::KeyboardShipController>(SDL_SCANCODE_D, SDL_SCANCODE_W));
-    shipControllers_.push_back(
-        std::make_unique<input::KeyboardShipController>(SDL_SCANCODE_RIGHT, SDL_SCANCODE_UP));
+      world_(buildWorld(options)) {
+    if (options.mode == core::GameMode::ClassicDeathmatch) {
+        // Player 1 uses the left-hand WASD cluster; Player 2 uses the arrow
+        // keys, so both players have a disjoint set of keys on the same
+        // keyboard. Upstream read mouse clicks for a single local player
+        // (see docs/UPSTREAM_AUDIT.md, section 8); two simultaneous local
+        // players need two independent input sources instead.
+        shipControllers_.push_back(std::make_unique<input::KeyboardShipController>(SDL_SCANCODE_D, SDL_SCANCODE_W));
+        shipControllers_.push_back(
+            std::make_unique<input::KeyboardShipController>(SDL_SCANCODE_RIGHT, SDL_SCANCODE_UP));
+    } else {
+        // Team Resource Battle has no human controller in this milestone:
+        // the window observes a 3v3 AI-vs-AI match, wired up exactly like
+        // the headless runner (see ai::makeTeamControllers).
+        shipControllers_ = ai::makeTeamControllers(world_, options.team0Strategy, options.team1Strategy);
+    }
 }
 
 int Application::run() {
@@ -100,6 +123,14 @@ std::vector<core::ShipAction> Application::collectShipActions() const {
 }
 
 void Application::updateWindowTitleForMatchState() {
+    if (world_.mode() == core::GameMode::ClassicDeathmatch) {
+        updateWindowTitleForClassicDeathmatch();
+    } else {
+        updateWindowTitleForTeamResourceBattle();
+    }
+}
+
+void Application::updateWindowTitleForClassicDeathmatch() {
     const core::MatchOutcome outcome = world_.matchState().outcome();
     if (outcome == lastAnnouncedOutcome_) {
         return;
@@ -117,6 +148,31 @@ void Application::updateWindowTitleForMatchState() {
             break;
         }
         case core::MatchOutcome::Draw:
+            title += " - Draw! Press R to restart";
+            break;
+    }
+    SDL_SetWindowTitle(window_.handle(), title.c_str());
+}
+
+void Application::updateWindowTitleForTeamResourceBattle() {
+    const core::TeamMatchOutcome outcome = world_.teamMatchState().outcome();
+    const std::array<int, 2>& scores = world_.teamScores();
+
+    // Unlike Classic Deathmatch, the score itself changes well before the
+    // match ends, so the title keeps refreshing every tick rather than only
+    // on outcome changes -- there is no single-frame flicker risk here since
+    // SDL_SetWindowTitle is cheap and this already runs at a fixed 60 Hz.
+    std::string title =
+        "AstroParty-AI - Team Resource Battle - " + std::to_string(scores[0]) + " : " + std::to_string(scores[1]);
+    switch (outcome) {
+        case core::TeamMatchOutcome::Undecided:
+            title += " (observing AI vs AI, R to restart)";
+            break;
+        case core::TeamMatchOutcome::TeamWon:
+            title += " - Team " + std::to_string(*world_.teamMatchState().winningTeamId() + 1) +
+                     " wins! Press R to restart";
+            break;
+        case core::TeamMatchOutcome::Draw:
             title += " - Draw! Press R to restart";
             break;
     }
