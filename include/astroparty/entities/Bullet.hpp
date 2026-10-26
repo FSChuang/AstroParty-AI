@@ -1,5 +1,6 @@
 #pragma once
 
+#include "astroparty/core/SimulationConfig.hpp"
 #include "astroparty/core/Vector2.hpp"
 
 namespace astroparty::entities {
@@ -8,7 +9,8 @@ namespace astroparty::entities {
 // with no rendering or SDL dependency.
 class Bullet {
 public:
-    Bullet(int ownerShipId, core::Vector2 spawnPosition, float headingDegrees) noexcept;
+    Bullet(int ownerShipId, core::Vector2 spawnPosition, float headingDegrees,
+           const core::SimulationConfig& config) noexcept;
 
     // Moves the bullet in a straight line and counts down its remaining
     // lifetime. Has no effect once the bullet has already expired.

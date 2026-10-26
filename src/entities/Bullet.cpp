@@ -1,16 +1,15 @@
 #include "astroparty/entities/Bullet.hpp"
 
-#include "astroparty/physics/PhysicsConstants.hpp"
-
 namespace astroparty::entities {
 
+using core::SimulationConfig;
 using core::Vector2;
 
-Bullet::Bullet(int ownerShipId, Vector2 spawnPosition, float headingDegrees) noexcept
+Bullet::Bullet(int ownerShipId, Vector2 spawnPosition, float headingDegrees, const SimulationConfig& config) noexcept
     : ownerShipId_(ownerShipId),
       position_(spawnPosition),
-      velocity_(Vector2::fromAngleDegrees(headingDegrees) * physics::kBulletSpeedUnitsPerSecond),
-      remainingLifetimeSeconds_(physics::kBulletLifetimeSeconds) {}
+      velocity_(Vector2::fromAngleDegrees(headingDegrees) * config.bulletSpeedUnitsPerSecond),
+      remainingLifetimeSeconds_(config.bulletLifetimeSeconds) {}
 
 void Bullet::update(float deltaSeconds) noexcept {
     if (isExpired()) {

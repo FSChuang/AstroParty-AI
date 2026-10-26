@@ -1,35 +1,22 @@
 #include "astroparty/core/World.hpp"
 
+#include <utility>
+
 #include "astroparty/core/Collisions.hpp"
-#include "astroparty/physics/PhysicsConstants.hpp"
 
 namespace astroparty::core {
 
-namespace {
+World::World() : World(SimulationConfig{}, MapDefinition::defaultTwoShipMap()) {}
 
-// Fixed two-ship starting layout for Milestone 1. Ships spawn in opposite
-// corners, angled toward the arena's center rather than upstream's uniform
-// 180-degree default (astro-party-workspace/audit/03_code_architecture.md,
-// section 10), so a freshly started or restarted match reads clearly instead
-// of both ships immediately flying toward a screen edge.
-struct ShipSpawn {
-    Vector2 position;
-    float headingDegrees;
-};
-
-constexpr ShipSpawn kShipSpawns[] = {
-    {Vector2{120.0f, 120.0f}, 135.0f},
-    {Vector2{1160.0f, 600.0f}, 315.0f},
-};
-
-}  // namespace
-
-World::World() : arenaSize_(physics::kArenaSize) { spawnInitialShips(); }
+World::World(SimulationConfig config, MapDefinition map) : config_(config), map_(std::move(map)) {
+    config_.arenaSize = map_.arenaSize;  // The map is the single source of truth for arena bounds.
+    spawnInitialShips();
+}
 
 void World::spawnInitialShips() {
     ships_.clear();
     int nextShipId = 0;
-    for (const ShipSpawn& spawn : kShipSpawns) {
+    for (const ShipSpawnPoint& spawn : map_.shipSpawns) {
         ships_.emplace_back(nextShipId++, spawn.position, spawn.headingDegrees);
     }
 }
@@ -56,8 +43,8 @@ void World::updateShips(const std::vector<ShipAction>& actions, float deltaSecon
     static constexpr ShipAction kNoInput{};
     for (std::size_t i = 0; i < ships_.size(); ++i) {
         const ShipAction& action = (i < actions.size()) ? actions[i] : kNoInput;
-        if (const auto spawnRequest = ships_[i].update(action, deltaSeconds, arenaSize_)) {
-            bullets_.emplace_back(ships_[i].id(), spawnRequest->position, spawnRequest->headingDegrees);
+        if (const auto spawnRequest = ships_[i].update(action, deltaSeconds, config_)) {
+            bullets_.emplace_back(ships_[i].id(), spawnRequest->position, spawnRequest->headingDegrees, config_);
         }
     }
 }
@@ -68,7 +55,7 @@ void World::updateBullets(float deltaSeconds) {
     }
 }
 
-void World::resolveCollisions() { resolveShipBulletCollisions(ships_, bullets_); }
+void World::resolveCollisions() { resolveShipBulletCollisions(ships_, bullets_, config_.shipCollisionRadius); }
 
 void World::removeExpiredBullets() {
     std::erase_if(bullets_, [](const entities::Bullet& bullet) { return bullet.isExpired(); });

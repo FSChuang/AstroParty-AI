@@ -19,7 +19,9 @@ class KeyboardShipController final : public IShipController {
 public:
     KeyboardShipController(SDL_Scancode turnRightKey, SDL_Scancode shootKey) noexcept;
 
-    [[nodiscard]] core::ShipAction pollAction() const override;
+    // Ignores `world` and `controlledShipId`: this controller always reads
+    // live physical keyboard state, which has no notion of "which ship."
+    [[nodiscard]] core::ShipAction decide(const core::World& world, int controlledShipId) override;
 
 private:
     SDL_Scancode turnRightKey_;

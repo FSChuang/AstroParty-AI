@@ -14,7 +14,8 @@ namespace astroparty::core {
 //
 // This is World's hit-resolution rule, extracted as a standalone function so
 // it can be exercised directly in unit tests with hand-placed ships and
-// bullets, independent of any particular match's spawn layout.
-void resolveShipBulletCollisions(std::vector<entities::Ship>& ships, std::vector<entities::Bullet>& bullets) noexcept;
+// bullets, independent of any particular match's spawn layout or config.
+void resolveShipBulletCollisions(std::vector<entities::Ship>& ships, std::vector<entities::Bullet>& bullets,
+                                  float shipCollisionRadius) noexcept;
 
 }  // namespace astroparty::core

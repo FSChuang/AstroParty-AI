@@ -1,12 +1,11 @@
 #include "astroparty/core/Collisions.hpp"
 
 #include "astroparty/physics/Collision.hpp"
-#include "astroparty/physics/PhysicsConstants.hpp"
 
 namespace astroparty::core {
 
-void resolveShipBulletCollisions(std::vector<entities::Ship>& ships,
-                                  std::vector<entities::Bullet>& bullets) noexcept {
+void resolveShipBulletCollisions(std::vector<entities::Ship>& ships, std::vector<entities::Bullet>& bullets,
+                                  float shipCollisionRadius) noexcept {
     for (entities::Ship& ship : ships) {
         if (!ship.isAlive()) {
             continue;
@@ -15,7 +14,7 @@ void resolveShipBulletCollisions(std::vector<entities::Ship>& ships,
             if (bullet.isExpired() || bullet.ownerShipId() == ship.id()) {
                 continue;
             }
-            if (physics::isPointWithinRadius(bullet.position(), ship.position(), physics::kShipCollisionRadius)) {
+            if (physics::isPointWithinRadius(bullet.position(), ship.position(), shipCollisionRadius)) {
                 ship.eliminate();
                 bullet.expireImmediately();
                 break;  // This ship is eliminated; no need to check its remaining bullets.

@@ -3,6 +3,7 @@
 #include <optional>
 
 #include "astroparty/core/Action.hpp"
+#include "astroparty/core/SimulationConfig.hpp"
 #include "astroparty/core/Vector2.hpp"
 
 namespace astroparty::entities {
@@ -27,18 +28,18 @@ class Ship {
 public:
     Ship(int id, core::Vector2 spawnPosition, float spawnHeadingDegrees) noexcept;
 
-    // Advances this ship by deltaSeconds according to `action`, then clamps
-    // its position to stay inside an arena of size `arenaSize`. Returns a
-    // bullet spawn request if `action.shoot` transitioned from released to
-    // pressed on this step: ships fire once per press rather than
-    // continuously while held, matching upstream's
+    // Advances this ship by deltaSeconds according to `action` and `config`,
+    // then clamps its position to stay inside the arena described by
+    // `config`. Returns a bullet spawn request if `action.shoot` transitioned
+    // from released to pressed on this step: ships fire once per press
+    // rather than continuously while held, matching upstream's
     // button_shoot / button_shoot_prev edge detection (see
     // astro-party-workspace/audit/03_code_architecture.md, section 3).
     //
     // Has no effect and returns std::nullopt once the ship has been
     // eliminated.
     std::optional<BulletSpawnRequest> update(const core::ShipAction& action, float deltaSeconds,
-                                              core::Vector2 arenaSize) noexcept;
+                                              const core::SimulationConfig& config) noexcept;
 
     // Marks this ship as eliminated. Idempotent.
     void eliminate() noexcept;
