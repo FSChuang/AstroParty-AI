@@ -1,0 +1,12 @@
+{
+  "name": "example_with_obstacles",
+  "arenaSize": { "x": 1280.0, "y": 720.0 },
+  "shipSpawns": [
+    { "position": { "x": 100.0, "y": 360.0 }, "headingDegrees": 90.0 },
+    { "position": { "x": 1180.0, "y": 360.0 }, "headingDegrees": 270.0 }
+  ],
+  "obstacles": [
+    { "position": { "x": 640.0, "y": 200.0 }, "radius": 40.0 },
+    { "position": { "x": 640.0, "y": 520.0 }, "radius": 40.0 }
+  ]
+}
