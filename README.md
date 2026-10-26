@@ -25,16 +25,30 @@ automated AI-vs-AI evaluation possible in the first place.
 
 ## Current features
 
-- Two-player local graphical gameplay (continuous acceleration, turning,
-  edge-triggered shooting, circular bullet/ship collision, win/draw
+- Two-player local graphical **Classic Deathmatch** (continuous acceleration,
+  turning, edge-triggered shooting, circular bullet/ship collision, win/draw
   detection, manual restart)
+- A **Team Resource Battle** mode (3v3): two teams compete to collect Energy
+  Core resources and deliver them to their own home region, with respawns,
+  per-team scoring, and a configurable winning score / tick limit
+- Circular arena **obstacles**: ships and bullets collide with them, spawn
+  placement rejects overlapping positions, and a fixed 6-ship arena
+  (`configs/maps/team_arena.json`) ships with the project
+- A rule-based **3v3 AI module** (`ai/`): shared steering/movement primitives,
+  a utility-based strategic team AI that dynamically assigns Collector /
+  Defender / Interceptor / Escort roles every tick from publicly observable
+  match state, and a simpler fixed-role baseline AI for fair comparison —
+  no neural networks, no learned policies, fully deterministic
 - A simulation library (`astroparty_sim`) with **no SDL dependency**,
   independently unit-tested
-- `IShipController`: one shared action interface for human keyboard input
-  and scripted/AI controllers — no special-casing in the simulation for
-  "who" is controlling a ship
-- A headless executable (`AstroPartyAI-headless`) that plays a full match
-  with no window and exports a structured JSON result
+- `IShipController`: one shared action interface for human keyboard input,
+  scripted controllers, and the rule-based AI — no special-casing in the
+  simulation for "who" is controlling a ship, and no controller can mutate
+  the simulation directly
+- A headless executable (`AstroPartyAI-headless`) that plays a full Classic
+  Deathmatch or Team Resource Battle match with no window and exports a
+  structured JSON result, plus a stdlib-only Python script
+  (`scripts/run_team_experiments.py`) for batch win-rate/score experiments
 - Deterministic, reproducible simulation: no randomness anywhere in the
   core loop, verified by automated replay tests
 - JSON-loadable, validated simulation configuration (`SimulationConfig`)
@@ -97,8 +111,23 @@ Useful CMake options: `ASTROPARTY_BUILD_TESTS` (default `ON`),
 ./build/AstroPartyAI
 ```
 
-Run it from anywhere — the game has no dependency on the current working
-directory.
+Run from the repository root. By default this starts a two-player Classic
+Deathmatch.
+
+To instead *observe* a 3v3 Team Resource Battle AI match (no human
+controller — this mode has no keyboard input):
+
+```sh
+./build/AstroPartyAI --mode team
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--mode <classic\|team>` | `classic` | Which game mode to run |
+| `--config <path>` | `configs/team_resource_battle.json` | `SimulationConfig` for `--mode team` |
+| `--map <path>` | `configs/maps/team_arena.json` | `MapDefinition` for `--mode team` |
+| `--team0-strategy <strategic\|baseline>` | `strategic` | Team 0's AI |
+| `--team1-strategy <strategic\|baseline>` | `baseline` | Team 1's AI |
 
 ## Controls
 
@@ -107,17 +136,23 @@ directory.
 | Player 1 (blue) | `D` | `W` |
 | Player 2 (red) | Right Arrow | Up Arrow |
 
+(`--mode team` has no human-controlled ships; both teams are AI.)
+
 | Action | Key |
 |---|---|
 | Restart the match | `R` |
 | Quit | `Esc` or close the window |
 
-The current match outcome is shown in the window title bar.
+The current match outcome (and, in Team Resource Battle, the live score) is
+shown in the window title bar.
 
 ## Headless execution and AI experiments
 
 `AstroPartyAI-headless` plays one complete match with no SDL window and
-prints a JSON result — the building block for batch AI evaluation:
+prints a JSON result — the building block for batch AI evaluation. The
+mode is whatever `--config`'s `SimulationConfig.mode` selects.
+
+Classic Deathmatch:
 
 ```sh
 ./build/AstroPartyAI-headless --max-ticks 3600
@@ -127,16 +162,50 @@ prints a JSON result — the building block for batch AI evaluation:
 { "outcome": "ShipWon", "winningShipId": 0, "ticksElapsed": 212 }
 ```
 
+Team Resource Battle (strategic AI vs. baseline AI, 3v3):
+
+```sh
+./build/AstroPartyAI-headless \
+  --config configs/team_resource_battle.json \
+  --map configs/maps/team_arena.json \
+  --team0-strategy strategic --team1-strategy baseline
+```
+
+```json
+{
+  "outcome": "TeamWon",
+  "winningTeamId": 0,
+  "ticksElapsed": 3600,
+  "teamScores": [2, 1],
+  "resourcesCollected": [3, 2],
+  "shipsDestroyed": [0, 1]
+}
+```
+
 | Flag | Default | Meaning |
 |---|---|---|
-| `--config <path>` | built-in defaults | A `SimulationConfig` JSON file |
+| `--config <path>` | built-in defaults (Classic Deathmatch) | A `SimulationConfig` JSON file |
 | `--map <path>` | built-in two-ship layout | A `MapDefinition` JSON file |
 | `--max-ticks <N>` | `3600` | Fixed-step budget before declaring a timeout |
 | `--output <path>` | stdout | Where to write the JSON result |
+| `--team0-strategy <strategic\|baseline>` | `strategic` | Team 0's AI (Team Resource Battle only) |
+| `--team1-strategy <strategic\|baseline>` | `baseline` | Team 1's AI (Team Resource Battle only) |
 
 Because this binary links only the simulation library — never SDL2 — it
 runs anywhere, including CI containers, and can be invoked repeatedly by an
-external script for batch experiments.
+external script for batch experiments. `scripts/run_team_experiments.py`
+(Python standard library only — it shells out to this executable and never
+participates in the simulation itself) does exactly that: it runs a chosen
+strategy pairing N times and reports win rates and average scores:
+
+```sh
+python3 scripts/run_team_experiments.py --runs 20 \
+  --team0-strategy strategic --team1-strategy baseline --csv results.csv
+```
+
+Since the simulation has no randomness, repeated runs of an *identical*
+config/map/strategy pairing are identical; vary the map, config, or
+strategy pairing between runs to get a meaningful sample.
 
 **Controllers are the extension point for AI.** Any class implementing
 `input::IShipController` — human, scripted, or a future learning agent —
@@ -149,15 +218,20 @@ to mutate it directly).
 ## Architecture overview
 
 ```
-   astroparty_sim (no SDL)              astroparty_platform (SDL)
-   ├─ core/      World, SimulationConfig,     ├─ rendering/  SDL window,
-   │             MapDefinition, MatchState    │              renderer, drawing
-   ├─ entities/  Ship, Bullet                 └─ input/      Keyboard controller
-   ├─ physics/   Arena bounds, collision
-   └─ headless/  MatchRunner, MatchResult
-            │                                         │
-            └───────────────┬─────────────────────────┘
-                             ▼
+   astroparty_sim (no SDL)                    astroparty_platform (SDL)
+   ├─ core/      World, GameMode,                   ├─ rendering/  SDL window,
+   │             SimulationConfig, MapDefinition,    │              renderer, drawing
+   │             MatchState, TeamMatchState          └─ input/      Keyboard controller
+   ├─ entities/  Ship, Bullet, Resource
+   ├─ physics/   Arena bounds, collision, obstacles
+   ├─ ai/        Steering, unit behaviors,
+   │             BaselineTeamStrategy, UtilityTeamStrategy,
+   │             TeamShipController
+   └─ headless/  MatchRunner/MatchResult,
+                 TeamMatchRunner/TeamMatchResult
+            │                                                 │
+            └───────────────────────┬─────────────────────────┘
+                                     ▼
               Application (graphical) / headless_main (no window)
 ```
 
@@ -184,8 +258,8 @@ counts and sanitizer usage.
 
 - [x] **Milestone 1** — Minimal playable two-player graphical game, simulation/rendering separation
 - [x] **Milestone 2** — Shared controller interface, headless execution, deterministic simulation, JSON configuration and map loading
-- [ ] **Milestone 3** — Functional obstacles, a Team Resource Battle mode (3v3), rule-based unit AI, and a strategic team-AI layer evaluated against a baseline
-- [ ] **Milestone 4** — Procedural arena generation
+- [x] **Milestone 3** — Functional obstacles, a Team Resource Battle mode (3v3), rule-based unit AI, and a strategic team-AI layer evaluated against a baseline
+- [ ] **Milestone 4** — Procedural arena generation; reinforcement-learning-based agents
 
 ## License and acknowledgments
 
