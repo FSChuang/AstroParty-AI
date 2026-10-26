@@ -73,6 +73,8 @@ add_library(astroparty_sim STATIC
     src/input/ScriptedShipController.cpp
     src/headless/MatchResult.cpp
     src/headless/MatchRunner.cpp
+    src/headless/TeamMatchResult.cpp
+    src/headless/TeamMatchRunner.cpp
     src/ai/Steering.cpp
     src/ai/UnitBehaviors.cpp
     src/ai/TeamObservations.cpp

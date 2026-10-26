@@ -59,4 +59,13 @@ TEST_SUITE("example configuration and map assets") {
         // arena is actually playable, not just individually well-formed.
         CHECK_NOTHROW(World(config, map));
     }
+
+    TEST_CASE("configs/team_resource_battle.json loads, validates, and pairs with team_arena.json") {
+        const SimulationConfig config = SimulationConfig::loadFromFile(kConfigsDir / "team_resource_battle.json");
+        CHECK_NOTHROW(config.validate());
+        CHECK(config.mode == GameMode::TeamResourceBattle);
+
+        const MapDefinition map = MapDefinition::loadFromFile(kConfigsDir / "maps/team_arena.json");
+        CHECK_NOTHROW(World(config, map));
+    }
 }
