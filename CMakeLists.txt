@@ -29,6 +29,23 @@ if(ASTROPARTY_ENABLE_SANITIZERS)
     target_link_options(astroparty_sanitizers INTERFACE -fsanitize=address,undefined)
 endif()
 
+# --- JSON dependency (configuration files, map files) -----------------------
+include(FetchContent)
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+)
+set(JSON_BuildTests OFF CACHE INTERNAL "")
+set(JSON_Install OFF CACHE INTERNAL "")
+# nlohmann/json 3.11.3's own CMakeLists.txt declares a cmake_minimum_required
+# floor below what CMake >= 4.0 will honor (the same issue tests/CMakeLists.txt
+# already works around for doctest). This only relaxes that check for fetched
+# dependencies, not for this project's own CMakeLists.txt files.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+FetchContent_MakeAvailable(nlohmann_json)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
+
 # --- Simulation library: core gameplay state and rules, no SDL dependency. --
 # This target is the concrete proof that the simulation is independent of
 # rendering (astro-party-workspace/audit/04_issues_and_risks.md, item C-7):
@@ -37,6 +54,8 @@ add_library(astroparty_sim STATIC
     src/core/Vector2.cpp
     src/core/MatchState.cpp
     src/core/Collisions.cpp
+    src/core/SimulationConfig.cpp
+    src/core/MapDefinition.cpp
     src/core/World.cpp
     src/entities/Ship.cpp
     src/entities/Bullet.cpp
@@ -46,7 +65,7 @@ add_library(astroparty_sim STATIC
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-target_link_libraries(astroparty_sim PUBLIC astroparty_warnings astroparty_sanitizers)
+target_link_libraries(astroparty_sim PUBLIC astroparty_warnings astroparty_sanitizers nlohmann_json::nlohmann_json)
 
 # --- SDL2 dependency -------------------------------------------------------
 # Resolved via find_package only; no hardcoded Homebrew/vcpkg/system paths

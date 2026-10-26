@@ -2,12 +2,17 @@
 
 #include <vector>
 
+#include "astroparty/core/MapDefinition.hpp"
 #include "astroparty/core/MatchState.hpp"
+#include "astroparty/core/SimulationConfig.hpp"
 #include "astroparty/core/Vector2.hpp"
 #include "astroparty/core/World.hpp"
 
+using astroparty::core::MapDefinition;
 using astroparty::core::MatchOutcome;
 using astroparty::core::ShipAction;
+using astroparty::core::ShipSpawnPoint;
+using astroparty::core::SimulationConfig;
 using astroparty::core::Vector2;
 using astroparty::core::World;
 
@@ -78,5 +83,59 @@ TEST_SUITE("World") {
             CHECK(ship.isAlive());
         }
         CHECK(world.matchState().outcome() == MatchOutcome::Undecided);
+    }
+
+    TEST_CASE("a World built from a custom map spawns ships at the map's spawn points") {
+        MapDefinition map;
+        map.name = "three_ship_test_map";
+        map.arenaSize = Vector2{640.0f, 480.0f};
+        map.shipSpawns = {
+            ShipSpawnPoint{Vector2{50.0f, 50.0f}, 0.0f},
+            ShipSpawnPoint{Vector2{300.0f, 240.0f}, 90.0f},
+            ShipSpawnPoint{Vector2{590.0f, 430.0f}, 180.0f},
+        };
+
+        World world(SimulationConfig{}, map);
+
+        REQUIRE(world.ships().size() == 3);
+        CHECK(world.ships()[0].position() == map.shipSpawns[0].position);
+        CHECK(world.ships()[1].position() == map.shipSpawns[1].position);
+        CHECK(world.ships()[2].position() == map.shipSpawns[2].position);
+        CHECK(world.ships()[1].headingDegrees() == doctest::Approx(90.0f));
+    }
+
+    TEST_CASE("a World's arena size comes from the map, overriding the config's") {
+        SimulationConfig config;
+        config.arenaSize = Vector2{1280.0f, 720.0f};  // Deliberately different from the map below.
+
+        MapDefinition map = MapDefinition::defaultTwoShipMap();
+        map.arenaSize = Vector2{640.0f, 480.0f};
+
+        World world(config, map);
+
+        CHECK(world.arenaSize() == map.arenaSize);
+        CHECK(world.config().arenaSize == map.arenaSize);
+    }
+
+    TEST_CASE("reset restores the configured map's spawn layout, not a hardcoded one") {
+        MapDefinition map;
+        map.name = "reset_test_map";
+        map.arenaSize = Vector2{640.0f, 480.0f};
+        map.shipSpawns = {
+            ShipSpawnPoint{Vector2{10.0f, 10.0f}, 0.0f},
+            ShipSpawnPoint{Vector2{600.0f, 400.0f}, 180.0f},
+        };
+        World world(SimulationConfig{}, map);
+
+        const std::vector<ShipAction> noActions(2);
+        for (int step = 0; step < 30; ++step) {
+            world.step(noActions, 1.0f / 60.0f);
+        }
+        REQUIRE(world.ships()[0].position() != map.shipSpawns[0].position);
+
+        world.reset();
+
+        CHECK(world.ships()[0].position() == map.shipSpawns[0].position);
+        CHECK(world.ships()[1].position() == map.shipSpawns[1].position);
     }
 }

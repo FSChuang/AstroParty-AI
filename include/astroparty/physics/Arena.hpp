@@ -11,9 +11,9 @@ namespace astroparty::physics {
 // section 4).
 //
 // Precondition: arenaSize.x > 2 * margin and arenaSize.y > 2 * margin, i.e.
-// the arena must be large enough for the margin to leave a valid range. This
-// always holds for the fixed kArenaSize / kShipCollisionRadius pairing
-// defined in PhysicsConstants.hpp.
+// the arena must be large enough for the margin to leave a valid range.
+// SimulationConfig::validate() enforces exactly this relationship between
+// arenaSize and shipCollisionRadius before a config is ever used.
 [[nodiscard]] core::Vector2 clampToArena(core::Vector2 position, core::Vector2 arenaSize, float margin) noexcept;
 
 }  // namespace astroparty::physics

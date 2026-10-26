@@ -27,7 +27,7 @@ private:
     SdlRenderer& renderer_;
 
     void clearBackground();
-    void drawShip(const entities::Ship& ship) const;
+    void drawShip(const entities::Ship& ship, float collisionRadius) const;
     void drawBullet(const entities::Bullet& bullet) const;
 };
 
