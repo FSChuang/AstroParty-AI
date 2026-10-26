@@ -14,10 +14,7 @@
 #include <string>
 #include <vector>
 
-#include "astroparty/ai/BaselineTeamStrategy.hpp"
-#include "astroparty/ai/TeamShipController.hpp"
-#include "astroparty/ai/TeamStrategy.hpp"
-#include "astroparty/ai/UtilityTeamStrategy.hpp"
+#include "astroparty/ai/TeamControllerFactory.hpp"
 #include "astroparty/core/GameMode.hpp"
 #include "astroparty/core/MapDefinition.hpp"
 #include "astroparty/core/SimulationConfig.hpp"
@@ -68,45 +65,6 @@ CommandLineOptions parseCommandLine(int argc, char** argv) {
     return options;
 }
 
-std::shared_ptr<astroparty::ai::ITeamStrategy> makeTeamStrategy(const std::string& name) {
-    if (name == "strategic") {
-        return std::make_shared<astroparty::ai::UtilityTeamStrategy>();
-    }
-    if (name == "baseline") {
-        return std::make_shared<astroparty::ai::BaselineTeamStrategy>();
-    }
-    throw std::invalid_argument("Unknown strategy '" + name + "': expected 'strategic' or 'baseline'");
-}
-
-// Builds one TeamShipController per ship, grouped by the team each
-// map-defined spawn belongs to, with each team sharing one strategy
-// instance. Mirrors makeDefaultControllers below but for Team Resource
-// Battle, where controllers.size() must equal world.ships().size() in
-// exactly the same way runMatch requires for Classic Deathmatch.
-std::vector<std::unique_ptr<astroparty::input::IShipController>> makeTeamControllers(
-    const astroparty::core::World& world, const std::string& team0StrategyName,
-    const std::string& team1StrategyName) {
-    std::vector<int> team0Ships;
-    std::vector<int> team1Ships;
-    for (std::size_t i = 0; i < world.ships().size(); ++i) {
-        (world.teamIdOfShip(static_cast<int>(i)) == 0 ? team0Ships : team1Ships).push_back(static_cast<int>(i));
-    }
-
-    const auto team0Strategy = makeTeamStrategy(team0StrategyName);
-    const auto team1Strategy = makeTeamStrategy(team1StrategyName);
-
-    std::vector<std::unique_ptr<astroparty::input::IShipController>> controllers(world.ships().size());
-    for (const int shipId : team0Ships) {
-        controllers[static_cast<std::size_t>(shipId)] =
-            std::make_unique<astroparty::ai::TeamShipController>(team0Strategy, 0, team0Ships);
-    }
-    for (const int shipId : team1Ships) {
-        controllers[static_cast<std::size_t>(shipId)] =
-            std::make_unique<astroparty::ai::TeamShipController>(team1Strategy, 1, team1Ships);
-    }
-    return controllers;
-}
-
 // Builds one deterministic controller per ship. Only the first ship turns;
 // the rest fly straight until the arena boundary clamps them in place. The
 // default two-ship map's spawns are point-reflections of each other through
@@ -144,7 +102,7 @@ int main(int argc, char** argv) {
 
         std::string json;
         if (world.mode() == astroparty::core::GameMode::TeamResourceBattle) {
-            auto controllers = makeTeamControllers(world, options.team0Strategy, options.team1Strategy);
+            auto controllers = astroparty::ai::makeTeamControllers(world, options.team0Strategy, options.team1Strategy);
             const astroparty::headless::TeamMatchResult result =
                 astroparty::headless::runTeamMatch(world, controllers, options.maxTicks);
             json = result.toJsonString();

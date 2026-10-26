@@ -80,6 +80,8 @@ add_library(astroparty_sim STATIC
     src/ai/TeamObservations.cpp
     src/ai/BaselineTeamStrategy.cpp
     src/ai/UtilityTeamStrategy.cpp
+    src/ai/TeamStrategyFactory.cpp
+    src/ai/TeamControllerFactory.cpp
     src/ai/TeamShipController.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
