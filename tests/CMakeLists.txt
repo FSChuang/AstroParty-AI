@@ -24,6 +24,9 @@ add_executable(astroparty_tests
     test_controllers.cpp
     test_headless_match_runner.cpp
     test_example_assets.cpp
+    test_obstacle_physics.cpp
+    test_team_match_state.cpp
+    test_resources.cpp
 )
 target_link_libraries(astroparty_tests PRIVATE
     astroparty_sim

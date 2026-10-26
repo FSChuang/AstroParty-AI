@@ -60,11 +60,14 @@ add_library(astroparty_sim STATIC
     src/core/Collisions.cpp
     src/core/SimulationConfig.cpp
     src/core/MapDefinition.cpp
+    src/core/TeamMatchState.cpp
     src/core/World.cpp
     src/entities/Ship.cpp
     src/entities/Bullet.cpp
+    src/entities/Resource.cpp
     src/physics/Arena.cpp
     src/physics/Collision.cpp
+    src/physics/Obstacle.cpp
     src/input/ScriptedShipController.cpp
     src/headless/MatchResult.cpp
     src/headless/MatchRunner.cpp

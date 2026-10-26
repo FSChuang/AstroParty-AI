@@ -1,6 +1,7 @@
 #include "astroparty/entities/Ship.hpp"
 
 #include "astroparty/physics/Arena.hpp"
+#include "astroparty/physics/Obstacle.hpp"
 
 namespace astroparty::entities {
 
@@ -42,5 +43,20 @@ std::optional<BulletSpawnRequest> Ship::update(const core::ShipAction& action, f
 }
 
 void Ship::eliminate() noexcept { isAlive_ = false; }
+
+void Ship::resolveObstacleOverlap(Vector2 obstaclePosition, float obstacleRadius, float shipRadius) noexcept {
+    if (!isAlive_) {
+        return;
+    }
+    position_ = physics::pushOutOfCircle(position_, shipRadius, obstaclePosition, obstacleRadius);
+}
+
+void Ship::respawn(Vector2 position, float headingDegrees) noexcept {
+    position_ = position;
+    velocity_ = Vector2{0.0f, 0.0f};
+    headingDegrees_ = headingDegrees;
+    isAlive_ = true;
+    shootHeldPreviousStep_ = false;
+}
 
 }  // namespace astroparty::entities

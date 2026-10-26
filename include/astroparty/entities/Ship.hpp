@@ -44,6 +44,21 @@ public:
     // Marks this ship as eliminated. Idempotent.
     void eliminate() noexcept;
 
+    // Pushes this ship directly out of an overlapping circular obstacle so
+    // it cannot pass through solid terrain; a no-op if it does not overlap
+    // the obstacle, or if the ship is not alive. `shipRadius` is supplied
+    // externally (from SimulationConfig), consistent with how collision
+    // radius is handled everywhere else in this project -- see
+    // resolveShipBulletCollisions in Collisions.hpp.
+    void resolveObstacleOverlap(core::Vector2 obstaclePosition, float obstacleRadius, float shipRadius) noexcept;
+
+    // Revives this ship after elimination, resetting it to the given spawn
+    // state (including clearing velocity and the shoot edge-detector).
+    // Used by game modes that respawn ships mid-match (e.g. Team Resource
+    // Battle) rather than ending the match on first elimination, as Classic
+    // Deathmatch does.
+    void respawn(core::Vector2 position, float headingDegrees) noexcept;
+
     [[nodiscard]] int id() const noexcept { return id_; }
     [[nodiscard]] core::Vector2 position() const noexcept { return position_; }
     [[nodiscard]] core::Vector2 velocity() const noexcept { return velocity_; }

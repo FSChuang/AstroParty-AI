@@ -23,4 +23,28 @@ void resolveShipBulletCollisions(std::vector<entities::Ship>& ships, std::vector
     }
 }
 
+void resolveShipObstacleCollisions(std::vector<entities::Ship>& ships, const std::vector<ObstacleDefinition>& obstacles,
+                                    float shipCollisionRadius) noexcept {
+    for (entities::Ship& ship : ships) {
+        for (const ObstacleDefinition& obstacle : obstacles) {
+            ship.resolveObstacleOverlap(obstacle.position, obstacle.radius, shipCollisionRadius);
+        }
+    }
+}
+
+void resolveBulletObstacleCollisions(std::vector<entities::Bullet>& bullets,
+                                      const std::vector<ObstacleDefinition>& obstacles) noexcept {
+    for (entities::Bullet& bullet : bullets) {
+        if (bullet.isExpired()) {
+            continue;
+        }
+        for (const ObstacleDefinition& obstacle : obstacles) {
+            if (physics::isPointWithinRadius(bullet.position(), obstacle.position, obstacle.radius)) {
+                bullet.expireImmediately();
+                break;
+            }
+        }
+    }
+}
+
 }  // namespace astroparty::core
