@@ -5,7 +5,7 @@ on the requirement that has driven the design since Milestone 1: **the
 simulation must be usable with no renderer, no input device, and no window
 at all.** That requirement comes directly from the Phase 1 audit of the
 reference project, [CAstroParty](https://github.com/kkysen/CAstroParty) (see
-`astro-party-workspace/audit/04_issues_and_risks.md`, item C-7), whose
+`docs/UPSTREAM_AUDIT.md`, item C-7), whose
 `Player`/`Bullet` structs embedded an `SDL_Texture*` directly and whose input
 handling wrote straight into the simulation's global state. Milestone 2 is
 the first payoff of that decision: a headless match runner that links none
@@ -166,7 +166,7 @@ spawn point inside the arena, every obstacle radius positive).
 | Obstacles | **Data only.** `MapDefinition` parses and validates them; `World` does not spawn a corresponding entity or collide anything against one yet. |
 
 Obstacle gameplay, 3v3 teams, and resource collection are Milestone 3 work
-(`astro-party-workspace/audit/06_implementation_roadmap.md`); procedural map
+(`docs/UPSTREAM_AUDIT.md`); procedural map
 generation is Milestone 4. This milestone's job was only to make sure a map
 *can* describe obstacles and that `World` *can* be built from external data
 at all -- both now true, with the actual obstacle interaction left for the
@@ -199,7 +199,7 @@ This matters for two reasons:
 2. **It preserves upstream's game feel exactly.** Upstream CAstroParty
    applied its movement constants once per tick at an implicit, uncapped 60
    Hz rate with no delta-time scaling at all (see
-   `astro-party-workspace/audit/03_code_architecture.md`, section 4). This
+   `docs/UPSTREAM_AUDIT.md`, section 4). This
    project expresses the same constants in per-second units and multiplies
    by `deltaSeconds`; at exactly `1/60` s per step (`SimulationConfig`'s
    default `tickRateHz`), the numeric effect is identical to upstream.
@@ -225,7 +225,7 @@ milestone.
 ## Deliberate differences from upstream CAstroParty
 
 These are documented here (and in more detail in
-`astro-party-workspace/audit/05_cpp_migration_plan.md`) so they read as
+`docs/UPSTREAM_AUDIT.md`) so they read as
 decisions, not oversights:
 
 | Area | Upstream | AstroParty-AI | Why |
@@ -256,7 +256,8 @@ GitHub-hosted runners: install SDL2 (apt / brew), `cmake -S . -B build`,
 `cmake --build build --parallel`, `ctest --test-dir build
 --output-on-failure`. It uses the repository's default (read-only)
 `GITHUB_TOKEN` permissions and installs no external actions beyond
-`actions/checkout`. See `README.md`'s "Continuous integration" and "Team
-development workflow" sections for how this fits into the group's merge
-process, and for the documented limitation around branch protection on a
-private repository under the current GitHub plan.
+`actions/checkout`. `main` is a protected branch: both CI jobs must pass
+and at least one approving review is required before a pull request can
+merge, and force-pushes/deletions of `main` are disabled at the repository
+level (verified via the GitHub API, not assumed). See `CONTRIBUTING.md` for
+the contribution workflow this enforces.

@@ -11,7 +11,7 @@ namespace astroparty::core {
 struct ShipAction {
     // The ship only ever turns right (there is no turn-left control), which
     // matches the verified upstream mechanic -- see
-    // astro-party-workspace/audit/03_code_architecture.md, section 4.
+    // docs/UPSTREAM_AUDIT.md, section 4.
     bool turnRight = false;
 
     bool shoot = false;

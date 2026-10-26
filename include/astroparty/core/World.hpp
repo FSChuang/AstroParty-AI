@@ -20,7 +20,7 @@ namespace astroparty::core {
 // constructed, stepped, and inspected from a plain unit test or a headless
 // batch-evaluation harness with no window at all -- this is the central fix
 // for the simulation/rendering coupling identified in
-// astro-party-workspace/audit/04_issues_and_risks.md (item C-7).
+// docs/UPSTREAM_AUDIT.md (item C-7).
 //
 // A World's ship roster is fixed for the whole match at whatever size the
 // map provides; unlike upstream's dynamic, 1000-capacity player array (sized

@@ -37,7 +37,7 @@ Application::Application()
     // Player 1 uses the left-hand WASD cluster; Player 2 uses the arrow keys,
     // so both players have a disjoint set of keys on the same keyboard.
     // Upstream read mouse clicks for a single local player (see
-    // astro-party-workspace/audit/03_code_architecture.md, section 8); two
+    // docs/UPSTREAM_AUDIT.md, section 8); two
     // simultaneous local players need two independent input sources instead.
     shipControllers_.push_back(std::make_unique<input::KeyboardShipController>(SDL_SCANCODE_D, SDL_SCANCODE_W));
     shipControllers_.push_back(

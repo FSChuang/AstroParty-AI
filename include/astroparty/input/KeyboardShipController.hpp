@@ -12,7 +12,7 @@ namespace astroparty::input {
 // Construct one instance per locally controlled ship so two players can use
 // disjoint key clusters on the same keyboard. Unlike upstream, which read
 // mouse clicks for a single local player (see
-// astro-party-workspace/audit/03_code_architecture.md, section 8), this
+// docs/UPSTREAM_AUDIT.md, section 8), this
 // project needs two independent local players, which keyboard scancodes
 // support directly.
 class KeyboardShipController final : public IShipController {

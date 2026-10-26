@@ -17,7 +17,7 @@ enum class MatchOutcome { Undecided, ShipWon, Draw };
 // team-based or scored rules in a later milestone without touching World's
 // movement or collision logic. This replaces upstream's you_win_timer /
 // InputHandler_button_restart mechanism, which the migration audit flagged
-// as an acknowledged hack (astro-party-workspace/audit/03_code_architecture.md,
+// as an acknowledged hack (docs/UPSTREAM_AUDIT.md,
 // section 12): that mechanism also had no explicit "draw" outcome for
 // simultaneous eliminations, which this version adds.
 class MatchState {

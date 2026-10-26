@@ -22,7 +22,7 @@ std::optional<BulletSpawnRequest> Ship::update(const core::ShipAction& action, f
 
     // The ship accelerates continuously along its current heading -- this is
     // the defining Astro Party mechanic: there is no "stop" control, only
-    // steering. See astro-party-workspace/audit/03_code_architecture.md,
+    // steering. See docs/UPSTREAM_AUDIT.md,
     // section 4.
     const Vector2 forward = Vector2::fromAngleDegrees(headingDegrees_);
     velocity_ += forward * (config.shipAccelerationUnitsPerSecondSquared * deltaSeconds);

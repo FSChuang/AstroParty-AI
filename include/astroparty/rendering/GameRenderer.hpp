@@ -15,7 +15,7 @@ namespace astroparty::rendering {
 // mutates simulation state: rendering is a one-way consumer of the
 // simulation, never a participant in it. This is the architectural fix for
 // the rendering/simulation coupling described in
-// astro-party-workspace/audit/04_issues_and_risks.md (item C-7), where
+// docs/UPSTREAM_AUDIT.md (item C-7), where
 // upstream's Player and Bullet structs directly embedded an SDL_Texture.
 class GameRenderer {
 public:

@@ -34,7 +34,7 @@ public:
     // from released to pressed on this step: ships fire once per press
     // rather than continuously while held, matching upstream's
     // button_shoot / button_shoot_prev edge detection (see
-    // astro-party-workspace/audit/03_code_architecture.md, section 3).
+    // docs/UPSTREAM_AUDIT.md, section 3).
     //
     // Has no effect and returns std::nullopt once the ship has been
     // eliminated.

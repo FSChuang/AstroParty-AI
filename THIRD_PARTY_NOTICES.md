@@ -14,9 +14,9 @@ the source of **CAstroParty**, a C/SDL2 multiplayer Astro Party clone:
 **No source files from CAstroParty are copied into this repository**, and no
 CAstroParty texture/image assets are used here — AstroParty-AI renders with
 SDL2 primitives only. Where a value or mechanic was carried over, it is
-documented at its point of use (see `include/astroparty/physics/PhysicsConstants.hpp`
-and `docs/ARCHITECTURE.md`) with an explicit reference back to the audit
-trail in `astro-party-workspace/audit/`.
+documented at its point of use (see `include/astroparty/core/SimulationConfig.hpp`
+and `docs/ARCHITECTURE.md`) with an explicit reference back to
+`docs/UPSTREAM_AUDIT.md`, this repository's condensed record of that audit.
 
 The original CAstroParty MIT license text is reproduced below in full, per
 its terms:

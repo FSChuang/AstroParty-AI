@@ -80,7 +80,7 @@ MapDefinition MapDefinition::loadFromFile(const std::filesystem::path& path) {
 MapDefinition MapDefinition::defaultTwoShipMap() {
     // Ships spawn in opposite corners, angled toward the arena's center
     // rather than upstream's uniform 180-degree default (see
-    // astro-party-workspace/audit/03_code_architecture.md, section 10), so a
+    // docs/UPSTREAM_AUDIT.md, section 10), so a
     // freshly started or restarted match reads clearly instead of both
     // ships immediately flying toward a screen edge.
     MapDefinition map;

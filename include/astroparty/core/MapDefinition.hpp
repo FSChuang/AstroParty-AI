@@ -17,7 +17,7 @@ struct ShipSpawnPoint {
 // obstacle's position and radius, and validate() checks its basic
 // structural sanity, but World does not yet spawn a corresponding entity or
 // collide anything against it -- that gameplay is planned for Milestone 3
-// (astro-party-workspace/audit/06_implementation_roadmap.md). See
+// (docs/UPSTREAM_AUDIT.md). See
 // docs/ARCHITECTURE.md for the current functional-vs-data-only breakdown of
 // map features.
 struct ObstacleDefinition {

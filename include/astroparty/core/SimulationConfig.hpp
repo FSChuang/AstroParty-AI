@@ -13,7 +13,7 @@ namespace astroparty::core {
 // The default values below exactly reproduce Milestone 1's original
 // hardcoded behavior. They are derived from upstream CAstroParty's per-tick
 // constants at an implicit 60 Hz; see
-// astro-party-workspace/audit/03_code_architecture.md (sections 3-6) for the
+// docs/UPSTREAM_AUDIT.md (sections 3, 4, and 6) for the
 // upstream values and docs/ARCHITECTURE.md for the unit conversion. Changing
 // these is now a configuration decision, not a code change.
 struct SimulationConfig {

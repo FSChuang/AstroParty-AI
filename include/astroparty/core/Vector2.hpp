@@ -38,7 +38,7 @@ struct Vector2 {
     //
     // Convention: 0 degrees points "up" on screen (negative Y) and angles
     // increase clockwise. This matches upstream CAstroParty's
-    // Vector_direction() (astro-party-workspace/audit/03_code_architecture.md,
+    // Vector_direction() (docs/UPSTREAM_AUDIT.md,
     // section 4), which offsets by -90 degrees before taking cos/sin for the
     // same reason: it makes 0 degrees a natural "facing up" default for a
     // ship sprite under SDL's Y-down coordinate system.

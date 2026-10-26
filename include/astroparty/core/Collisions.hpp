@@ -9,7 +9,7 @@ namespace astroparty::core {
 
 // Eliminates every ship within collision range of an enemy bullet, and
 // immediately expires any bullet that lands a hit. A ship never takes
-// damage from its own bullet (astro-party-workspace/audit/03_code_architecture.md,
+// damage from its own bullet (docs/UPSTREAM_AUDIT.md,
 // section 6).
 //
 // This is World's hit-resolution rule, extracted as a standalone function so

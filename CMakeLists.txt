@@ -48,7 +48,7 @@ unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # --- Simulation library: core gameplay state and rules, no SDL dependency. --
 # This target is the concrete proof that the simulation is independent of
-# rendering (astro-party-workspace/audit/04_issues_and_risks.md, item C-7):
+# rendering (docs/UPSTREAM_AUDIT.md, item C-7):
 # it builds, and is fully unit-testable, without ever linking SDL2. The one
 # controller implementation that needs no SDL (ScriptedShipController) lives
 # here too, alongside IShipController's interface and the headless match
