@@ -51,8 +51,9 @@ unset(CMAKE_POLICY_VERSION_MINIMUM)
 # rendering (astro-party-workspace/audit/04_issues_and_risks.md, item C-7):
 # it builds, and is fully unit-testable, without ever linking SDL2. The one
 # controller implementation that needs no SDL (ScriptedShipController) lives
-# here too, alongside IShipController's interface, so controllers can be
-# exercised and reused with no SDL dependency at all.
+# here too, alongside IShipController's interface and the headless match
+# runner, so the headless executable below never needs to link
+# astroparty_platform.
 add_library(astroparty_sim STATIC
     src/core/Vector2.cpp
     src/core/MatchState.cpp
@@ -65,6 +66,8 @@ add_library(astroparty_sim STATIC
     src/physics/Arena.cpp
     src/physics/Collision.cpp
     src/input/ScriptedShipController.cpp
+    src/headless/MatchResult.cpp
+    src/headless/MatchRunner.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -114,6 +117,13 @@ add_executable(AstroPartyAI
 )
 target_include_directories(AstroPartyAI PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(AstroPartyAI PRIVATE astroparty_platform astroparty_warnings astroparty_sanitizers)
+
+# --- Headless executable ----------------------------------------------------
+# Links astroparty_sim only -- no astroparty_platform, no SDL2 -- so it can
+# run a full automated match with no display attached (CI, batch evaluation
+# scripts). See docs/ARCHITECTURE.md for its JSON result format.
+add_executable(AstroPartyAI-headless src/headless_main.cpp)
+target_link_libraries(AstroPartyAI-headless PRIVATE astroparty_sim astroparty_warnings astroparty_sanitizers)
 
 if(ASTROPARTY_BUILD_TESTS)
     enable_testing()
