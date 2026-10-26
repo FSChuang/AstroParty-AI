@@ -53,7 +53,9 @@ unset(CMAKE_POLICY_VERSION_MINIMUM)
 # controller implementation that needs no SDL (ScriptedShipController) lives
 # here too, alongside IShipController's interface and the headless match
 # runner, so the headless executable below never needs to link
-# astroparty_platform.
+# astroparty_platform. The rule-based AI under ai/ (steering, unit
+# behaviors, team strategies, TeamShipController) is likewise SDL-free, so
+# both graphical and headless 3v3 matches can use the exact same AI code.
 add_library(astroparty_sim STATIC
     src/core/Vector2.cpp
     src/core/MatchState.cpp
@@ -71,6 +73,12 @@ add_library(astroparty_sim STATIC
     src/input/ScriptedShipController.cpp
     src/headless/MatchResult.cpp
     src/headless/MatchRunner.cpp
+    src/ai/Steering.cpp
+    src/ai/UnitBehaviors.cpp
+    src/ai/TeamObservations.cpp
+    src/ai/BaselineTeamStrategy.cpp
+    src/ai/UtilityTeamStrategy.cpp
+    src/ai/TeamShipController.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

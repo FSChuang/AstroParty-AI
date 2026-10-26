@@ -307,6 +307,51 @@ TEST_SUITE("World Team Resource Battle gameplay") {
         CHECK(world.ships()[0].position() == originalSpawn);
     }
 
+    TEST_CASE("resourcesCollected increments on pickup, independent of whether it is later delivered") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildValidTeamMap();
+        map.shipSpawns[0].position = Vector2{500.0f, 500.0f};
+        map.resourceSpawnPoints = {Vector2{500.0f, 500.0f}};
+        World world(config, map);
+
+        world.step(noActionsForSixShips(), kFixedDeltaSeconds);
+
+        CHECK(world.resourcesCollected()[0] == 1);
+        CHECK(world.resourcesCollected()[1] == 0);
+        CHECK(world.teamScores()[0] == 0);  // Picked up, but not yet delivered.
+    }
+
+    TEST_CASE("shipsDestroyed counts each elimination exactly once, even across many ticks while dead") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildValidTeamMap();
+        map.shipSpawns[0] = ShipSpawnPoint{Vector2{500.0f, 500.0f}, 90.0f, 0};
+        map.shipSpawns[3] = ShipSpawnPoint{Vector2{800.0f, 500.0f}, 270.0f, 1};
+        World world(config, map);
+
+        std::vector<ShipAction> enemyFires = noActionsForSixShips();
+        enemyFires[3].shoot = true;
+        world.step(enemyFires, kFixedDeltaSeconds);
+
+        bool shipZeroDied = false;
+        for (int i = 0; i < 150 && !shipZeroDied; ++i) {
+            world.step(noActionsForSixShips(), kFixedDeltaSeconds);
+            shipZeroDied = !world.ships()[0].isAlive();
+        }
+        REQUIRE(shipZeroDied);
+
+        // Keep stepping well past the moment of death, while still dead
+        // (respawnDelayTicks defaults to 180): the count must not keep
+        // incrementing just because the ship remains dead for many ticks.
+        for (int i = 0; i < 20; ++i) {
+            world.step(noActionsForSixShips(), kFixedDeltaSeconds);
+        }
+
+        CHECK(world.shipsDestroyed()[0] == 1);
+        CHECK(world.shipsDestroyed()[1] == 0);
+    }
+
     TEST_CASE("reset clears scores, resources, and respawn state") {
         SimulationConfig config;
         config.mode = GameMode::TeamResourceBattle;

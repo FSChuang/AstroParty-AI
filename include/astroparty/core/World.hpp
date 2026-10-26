@@ -75,7 +75,20 @@ public:
     [[nodiscard]] const MapDefinition& map() const noexcept { return map_; }
     [[nodiscard]] Vector2 arenaSize() const noexcept { return config_.arenaSize; }
     [[nodiscard]] GameMode mode() const noexcept { return config_.mode; }
+    // Resources successfully delivered per team (what teamMatchState()'s
+    // winningScore counts against).
     [[nodiscard]] const std::array<int, 2>& teamScores() const noexcept { return teamScores_; }
+
+    // Cumulative resource pickups per team so far this match -- always >=
+    // the corresponding teamScores() entry, since a resource dropped after
+    // its carrier is eliminated and later picked up again counts as another
+    // collection without necessarily having been delivered yet.
+    [[nodiscard]] const std::array<int, 2>& resourcesCollected() const noexcept { return resourcesCollected_; }
+
+    // Cumulative ship eliminations per team so far this match (a ship that
+    // respawns and dies again counts twice).
+    [[nodiscard]] const std::array<int, 2>& shipsDestroyed() const noexcept { return shipsDestroyed_; }
+
     [[nodiscard]] int elapsedTicks() const noexcept { return elapsedTicks_; }
 
     // The team ID (0 or 1) that ships()[shipId] belongs to, or -1 in
@@ -91,6 +104,8 @@ private:
     MatchState matchState_;             // Meaningful only when mode() == ClassicDeathmatch.
     TeamMatchState teamMatchState_;      // Meaningful only when mode() == TeamResourceBattle.
     std::array<int, 2> teamScores_{};
+    std::array<int, 2> resourcesCollected_{};
+    std::array<int, 2> shipsDestroyed_{};
     std::vector<int> respawnTicksRemaining_;  // One per ship; 0 = not currently awaiting respawn.
     int elapsedTicks_ = 0;
 

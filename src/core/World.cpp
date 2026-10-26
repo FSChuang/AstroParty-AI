@@ -94,6 +94,8 @@ void World::reset() {
     spawnInitialResources();
     respawnTicksRemaining_.assign(ships_.size(), 0);
     teamScores_ = {};
+    resourcesCollected_ = {};
+    shipsDestroyed_ = {};
     elapsedTicks_ = 0;
     matchState_.reset();
     teamMatchState_.reset();
@@ -169,6 +171,7 @@ void World::updateResourcePickupAndDelivery() {
             }
             if (physics::isPointWithinRadius(ship.position(), resource.spawnPosition(), config_.resourcePickupRadius)) {
                 resource.pickUp(ship.id());
+                ++resourcesCollected_[static_cast<std::size_t>(teamIdOfShip(ship.id()))];
                 break;
             }
         }
@@ -207,6 +210,7 @@ void World::updateRespawns() {
         }
         if (respawnTicksRemaining_[i] <= 0) {
             respawnTicksRemaining_[i] = config_.respawnDelayTicks;
+            ++shipsDestroyed_[static_cast<std::size_t>(teamIdOfShip(static_cast<int>(i)))];
         }
         --respawnTicksRemaining_[i];
         if (respawnTicksRemaining_[i] <= 0) {
