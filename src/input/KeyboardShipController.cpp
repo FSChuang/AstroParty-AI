@@ -7,7 +7,7 @@ namespace astroparty::input {
 KeyboardShipController::KeyboardShipController(SDL_Scancode turnRightKey, SDL_Scancode shootKey) noexcept
     : turnRightKey_(turnRightKey), shootKey_(shootKey) {}
 
-core::ShipAction KeyboardShipController::pollAction() const {
+core::ShipAction KeyboardShipController::decide(const core::World& /*world*/, int /*controlledShipId*/) {
     const Uint8* keyboardState = SDL_GetKeyboardState(nullptr);
     return core::ShipAction{
         .turnRight = keyboardState[turnRightKey_] != 0,

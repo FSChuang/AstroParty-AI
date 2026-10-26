@@ -21,6 +21,7 @@ add_executable(astroparty_tests
     test_world.cpp
     test_simulation_config.cpp
     test_map_definition.cpp
+    test_controllers.cpp
 )
 target_link_libraries(astroparty_tests PRIVATE
     astroparty_sim

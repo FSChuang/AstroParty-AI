@@ -49,7 +49,10 @@ unset(CMAKE_POLICY_VERSION_MINIMUM)
 # --- Simulation library: core gameplay state and rules, no SDL dependency. --
 # This target is the concrete proof that the simulation is independent of
 # rendering (astro-party-workspace/audit/04_issues_and_risks.md, item C-7):
-# it builds, and is fully unit-testable, without ever linking SDL2.
+# it builds, and is fully unit-testable, without ever linking SDL2. The one
+# controller implementation that needs no SDL (ScriptedShipController) lives
+# here too, alongside IShipController's interface, so controllers can be
+# exercised and reused with no SDL dependency at all.
 add_library(astroparty_sim STATIC
     src/core/Vector2.cpp
     src/core/MatchState.cpp
@@ -61,6 +64,7 @@ add_library(astroparty_sim STATIC
     src/entities/Bullet.cpp
     src/physics/Arena.cpp
     src/physics/Collision.cpp
+    src/input/ScriptedShipController.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

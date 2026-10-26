@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <string>
 
 #include "astroparty/input/KeyboardShipController.hpp"
@@ -92,8 +93,8 @@ void Application::applyRestartCommandIfRequested() {
 std::vector<core::ShipAction> Application::collectShipActions() const {
     std::vector<core::ShipAction> actions;
     actions.reserve(shipControllers_.size());
-    for (const auto& controller : shipControllers_) {
-        actions.push_back(controller->pollAction());
+    for (std::size_t i = 0; i < shipControllers_.size(); ++i) {
+        actions.push_back(shipControllers_[i]->decide(world_, static_cast<int>(i)));
     }
     return actions;
 }
