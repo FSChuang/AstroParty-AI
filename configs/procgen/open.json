@@ -1,0 +1,15 @@
+{
+  "arenaSize": { "x": 1280.0, "y": 720.0 },
+  "shipsPerTeam": 3,
+  "shipCollisionRadius": 18.0,
+  "homeRegionRadius": 80.0,
+  "resourceCount": 5,
+  "obstacleCount": 6,
+  "obstacleRadiusMin": 20.0,
+  "obstacleRadiusMax": 40.0,
+  "clusterCount": 0,
+  "minObstacleSpacing": 40.0,
+  "minBaseSeparationFromHome": 150.0,
+  "symmetric": true,
+  "maxPlacementAttemptsPerObject": 200
+}

@@ -147,6 +147,12 @@ target_link_libraries(AstroPartyAI PRIVATE astroparty_platform astroparty_warnin
 add_executable(AstroPartyAI-headless src/headless_main.cpp)
 target_link_libraries(AstroPartyAI-headless PRIVATE astroparty_sim astroparty_warnings astroparty_sanitizers)
 
+# --- Map generator executable -----------------------------------------------
+# Links astroparty_sim only, exactly like AstroPartyAI-headless -- batch map
+# generation never requires a display either. See docs/PROCEDURAL_GENERATION.md.
+add_executable(AstroPartyAI-mapgen src/mapgen_main.cpp)
+target_link_libraries(AstroPartyAI-mapgen PRIVATE astroparty_sim astroparty_warnings astroparty_sanitizers)
+
 if(ASTROPARTY_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
