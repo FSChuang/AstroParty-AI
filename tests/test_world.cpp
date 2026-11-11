@@ -35,18 +35,18 @@ TEST_SUITE("World") {
         CHECK(world.matchState().outcome() == MatchOutcome::Undecided);
     }
 
-    TEST_CASE("stepping with no input still advances both ships, since they accelerate continuously") {
+    TEST_CASE("stepping applies thrust only to the ship that commands it") {
         World world;
         const Vector2 initialPositionOfShip0 = world.ships()[0].position();
         const Vector2 initialPositionOfShip1 = world.ships()[1].position();
 
-        const std::vector<ShipAction> noActions(2);
+        const std::vector<ShipAction> actions{ShipAction{.throttle = 1.0f}, ShipAction{}};
         for (int step = 0; step < 30; ++step) {
-            world.step(noActions, 1.0f / 60.0f);
+            world.step(actions, 1.0f / 60.0f);
         }
 
         CHECK(world.ships()[0].position() != initialPositionOfShip0);
-        CHECK(world.ships()[1].position() != initialPositionOfShip1);
+        CHECK(world.ships()[1].position() == initialPositionOfShip1);
     }
 
     TEST_CASE("firing spawns a bullet owned by the firing ship") {

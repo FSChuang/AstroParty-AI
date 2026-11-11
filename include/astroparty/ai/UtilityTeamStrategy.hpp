@@ -18,24 +18,33 @@ namespace astroparty::ai {
 //
 //   1. Collector (deliver): any ship already carrying a resource always
 //      heads home, regardless of anything else happening in the match.
-//   2. Interceptor: if an enemy ship carrying a resource is within
+//   2. Reserve a support ship when two ships can collect or deliver. It
+//      escorts threatened allies first, then uses the team's support policy.
+//      Collectors split available cores when possible.
+//   3. If the formation is short a ship, escort a threatened carrier when
+//      possible.
+//   4. Interceptor: if an enemy ship carrying a resource is within
 //      threatening range of this team's home region, the nearest
 //      available ship is sent to stop it.
-//   3. Escort: if this team has its own carrier and an enemy is closing in
-//      on it, the nearest remaining available ship is sent to engage that
-//      threat.
-//   4. Collector (gather): each remaining available ship is sent after the
-//      nearest currently-available resource.
-//   5. Defender: any ship left unassigned (e.g. no resources are currently
-//      available) patrols this team's home region.
+//   5. Collector or Defender: remaining ships gather or patrol home. An
+//      unladen ship in either role can switch to close-range self-defense.
 //
 // See docs/ARCHITECTURE.md's "Team-level strategic AI" section for the
 // full rationale, including why a stateless, recomputed-every-tick design
 // was chosen over an explicit event/state-machine model.
-class UtilityTeamStrategy final : public ITeamStrategy {
+class UtilityTeamStrategy : public ITeamStrategy {
 public:
+    UtilityTeamStrategy() = default;
     [[nodiscard]] std::vector<ShipGoal> assignGoals(const core::World& world, int teamId,
                                                       const std::vector<int>& teamShipIds) override;
+
+protected:
+    explicit UtilityTeamStrategy(float escortThreatRadius) : escortThreatRadius_(escortThreatRadius) {}
+    [[nodiscard]] virtual ShipGoal supportGoal(const core::World& world, int teamId, const entities::Ship& ship,
+                                               core::Vector2 homePosition, std::optional<int> enemyCarrierId) const;
+
+private:
+    float escortThreatRadius_ = 250.0f;
 };
 
 }  // namespace astroparty::ai

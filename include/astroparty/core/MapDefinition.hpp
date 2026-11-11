@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,6 +48,9 @@ struct MapDefinition {
     std::vector<ObstacleDefinition> obstacles;
     std::vector<HomeRegion> homeRegions;
     std::vector<Vector2> resourceSpawnPoints;
+    // Optional Team Resource Battle rules tied to this arena.
+    std::optional<int> winningScore{};
+    std::optional<int> matchDurationSeconds{};
 
     // Throws std::invalid_argument, naming the problem, if the map is
     // structurally invalid: fewer than two spawn points, a spawn point

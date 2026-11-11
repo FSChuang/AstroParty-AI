@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "astroparty/ai/BaselineTeamStrategy.hpp"
+#include "astroparty/ai/RedTeamStrategy.hpp"
 #include "astroparty/ai/TeamShipController.hpp"
 #include "astroparty/ai/TeamStrategy.hpp"
 #include "astroparty/ai/UtilityTeamStrategy.hpp"
@@ -136,18 +137,23 @@ TEST_SUITE("BaselineTeamStrategy") {
 }
 
 TEST_SUITE("UtilityTeamStrategy") {
-    TEST_CASE("sends an unassigned ship after the nearest available resource when nothing else is happening") {
+    TEST_CASE("sends two collectors to separate cores and gives the third ship an enemy target") {
         SimulationConfig config;
         config.mode = GameMode::TeamResourceBattle;
-        World world(config, buildTeamMap());
+        MapDefinition map = buildTeamMap();
+        map.resourceSpawnPoints.push_back(Vector2{560.0f, 550.0f});
+        World world(config, map);
         UtilityTeamStrategy strategy;
 
         const std::vector<ShipGoal> goals = strategy.assignGoals(world, 0, kTeam0Ships);
 
-        const bool anyIsCollectorTowardResource =
-            goals[0].role == ShipRole::Collector || goals[1].role == ShipRole::Collector ||
-            goals[2].role == ShipRole::Collector;
-        CHECK(anyIsCollectorTowardResource);
+        CHECK(goals[0].role == ShipRole::Collector);
+        CHECK(goals[1].role == ShipRole::Collector);
+        CHECK(goals[0].targetPosition == map.resourceSpawnPoints[0]);
+        CHECK(goals[1].targetPosition == map.resourceSpawnPoints[1]);
+        CHECK(goals[2].role == ShipRole::Interceptor);
+        CHECK(goals[2].targetShipId == 5);
+        CHECK(goals[2].targetPosition == world.ships()[5].position());
     }
 
     TEST_CASE("leftover ships Defend home once the only resource has already been claimed") {
@@ -210,7 +216,7 @@ TEST_SUITE("UtilityTeamStrategy") {
         CHECK(oneIsInterceptingShip5);
     }
 
-    TEST_CASE("does not intercept an enemy carrier that is still far from home") {
+    TEST_CASE("does not chase a distant enemy carrier without two collectors") {
         SimulationConfig config;
         config.mode = GameMode::TeamResourceBattle;
         MapDefinition map = buildTeamMap();
@@ -227,6 +233,113 @@ TEST_SUITE("UtilityTeamStrategy") {
         for (const ShipGoal& goal : goals) {
             CHECK(goal.role != ShipRole::Interceptor);
         }
+    }
+
+    TEST_CASE("the spare interceptor pursues a distant carrier without picking up the core under it") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildTeamMap();
+        map.shipSpawns[1].position = Vector2{170.0f, 150.0f};
+        map.resourceSpawnPoints = {
+            map.shipSpawns[0].position, map.shipSpawns[1].position, map.shipSpawns[5].position,
+            map.shipSpawns[2].position
+        };
+        World world(config, map);
+        auto actions = noActionsForSixShips();
+        actions[2].allowResourcePickup = false;
+        world.step(actions, kFixedDeltaSeconds);
+        for (const auto i : {0, 1, 2}) {
+            REQUIRE(world.resources()[i].state() == astroparty::entities::ResourceState::Carried);
+        }
+        REQUIRE(world.resources()[3].state() == astroparty::entities::ResourceState::AtSpawn);
+        auto strategy = std::make_shared<UtilityTeamStrategy>();
+
+        const auto goals = strategy->assignGoals(world, 0, kTeam0Ships);
+
+        for (const auto i : {0, 1}) {
+            CHECK(goals[i].role == ShipRole::Collector);
+            CHECK(goals[i].targetPosition == map.homeRegions[0].position);
+        }
+        CHECK(goals[2].role == ShipRole::Interceptor);
+        CHECK(goals[2].targetShipId == 5);
+
+        TeamShipController interceptor(strategy, 0, kTeam0Ships);
+        actions[2] = interceptor.decide(world, 2);
+        world.step(actions, kFixedDeltaSeconds);
+        CHECK(interceptor.lastRole() == ShipRole::Interceptor);
+        CHECK(world.resources()[3].state() == astroparty::entities::ResourceState::AtSpawn);
+        CHECK(world.resourcesCollected()[0] == 2);
+    }
+
+    TEST_CASE("the offensive ship switches from a distant carrier to a nearby enemy") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildTeamMap();
+        map.shipSpawns[3].position = Vector2{160.0f, 450.0f};
+        map.resourceSpawnPoints.push_back(map.shipSpawns[5].position);
+        World world(config, map);
+        world.step(noActionsForSixShips(), kFixedDeltaSeconds);
+        REQUIRE(world.resources()[1].carrierShipId() == 5);
+        UtilityTeamStrategy strategy;
+
+        const auto goals = strategy.assignGoals(world, 0, kTeam0Ships);
+
+        CHECK(goals[0].role == ShipRole::Collector);
+        CHECK(goals[1].role == ShipRole::Collector);
+        CHECK(goals[2].role == ShipRole::Interceptor);
+        CHECK(goals[2].targetShipId == 3);
+    }
+
+    TEST_CASE("a threatened collector fires in self-defense and resumes gathering when the enemy leaves") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildTeamMap();
+        map.shipSpawns[0].headingDegrees = 90.0f;
+        map.shipSpawns[3] = ShipSpawnPoint{Vector2{140.0f, 50.0f}, 90.0f, 1};
+        World world(config, map);
+        auto strategy = std::make_shared<UtilityTeamStrategy>();
+        TeamShipController collector(strategy, 0, kTeam0Ships);
+
+        const auto action = collector.decide(world, 0);
+        CHECK(collector.lastRole() == ShipRole::SelfDefense);
+        CHECK(action.shoot);
+        CHECK_FALSE(action.allowResourcePickup);
+        const auto threatenedGoals = strategy->assignGoals(world, 0, kTeam0Ships);
+        CHECK(threatenedGoals[2].role == ShipRole::Escort);
+        CHECK(threatenedGoals[2].protectedShipId == 0);
+
+        auto actions = noActionsForSixShips();
+        actions[3].throttle = 1.0f;
+        for (int tick = 0; tick < 150; ++tick) {
+            world.step(actions, kFixedDeltaSeconds);
+        }
+        const auto resumed = collector.decide(world, 0);
+        CHECK(collector.lastRole() == ShipRole::Collector);
+        CHECK(resumed.allowResourcePickup);
+    }
+
+    TEST_CASE("a full team escorts the threatened carrier while both carriers keep delivering") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildTeamMap();
+        map.shipSpawns[1].position = Vector2{500.0f, 600.0f};
+        map.shipSpawns[3].position = Vector2{675.0f, 600.0f};
+        map.resourceSpawnPoints = {map.shipSpawns[0].position, map.shipSpawns[1].position};
+        World world(config, map);
+        world.step(noActionsForSixShips(), kFixedDeltaSeconds);
+        REQUIRE(world.resources()[0].carrierShipId() == 0);
+        REQUIRE(world.resources()[1].carrierShipId() == 1);
+        UtilityTeamStrategy strategy;
+
+        const auto goals = strategy.assignGoals(world, 0, kTeam0Ships);
+
+        for (const auto i : {0, 1}) {
+            CHECK(goals[i].role == ShipRole::Collector);
+            CHECK(goals[i].targetPosition == map.homeRegions[0].position);
+        }
+        CHECK(goals[2].role == ShipRole::Escort);
+        CHECK(goals[2].protectedShipId == 1);
+        CHECK(goals[2].targetShipId == 3);
     }
 
     TEST_CASE("assigns an escort to a friendly carrier being closely followed by an enemy") {
@@ -246,6 +359,8 @@ TEST_SUITE("UtilityTeamStrategy") {
         const std::vector<ShipGoal> goals = strategy.assignGoals(world, 0, kTeam0Ships);
 
         CHECK(goals[0].role == ShipRole::Collector);  // The carrier itself always heads home.
+        CHECK(goals[0].targetPosition == map.homeRegions[0].position);
+        CHECK(goals[0].targetShipId == 3);  // The movement controller can evade the threat.
         const bool oneEscortsAgainstShip3 =
             (goals[1].role == ShipRole::Escort && goals[1].targetShipId == 3) ||
             (goals[2].role == ShipRole::Escort && goals[2].targetShipId == 3);
@@ -302,7 +417,85 @@ TEST_SUITE("UtilityTeamStrategy") {
     }
 }
 
+TEST_SUITE("RedTeamStrategy") {
+    TEST_CASE("screens home while blue pursues when opponents are far away") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        const auto map = buildTeamMap();
+        const World world(config, map);
+        astroparty::ai::RedTeamStrategy red;
+        UtilityTeamStrategy blue;
+
+        const auto redGoals = red.assignGoals(world, 1, kTeam1Ships);
+        const auto blueGoals = blue.assignGoals(world, 1, kTeam1Ships);
+
+        CHECK(redGoals[0].role == ShipRole::Collector);
+        CHECK(redGoals[1].role == ShipRole::Collector);
+        CHECK(redGoals[2].role == ShipRole::Defender);
+        CHECK(redGoals[2].targetPosition.x < map.homeRegions[1].position.x);
+        CHECK_FALSE(redGoals[2].targetShipId.has_value());
+        CHECK(blueGoals[2].role == ShipRole::Interceptor);
+    }
+
+    TEST_CASE("assigns an escort to a carrier from farther away than the blue policy") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        auto map = buildTeamMap();
+        map.shipSpawns[0].position = Vector2{410.0f, 500.0f};
+        map.shipSpawns[3].position = Vector2{700.0f, 500.0f};
+        map.resourceSpawnPoints.push_back(map.shipSpawns[3].position);
+        World world(config, map);
+        world.step(noActionsForSixShips(), kFixedDeltaSeconds);
+        REQUIRE(world.resources()[1].carrierShipId() == 3);
+        astroparty::ai::RedTeamStrategy red;
+        UtilityTeamStrategy blue;
+
+        const auto redGoals = red.assignGoals(world, 1, kTeam1Ships);
+        const auto blueGoals = blue.assignGoals(world, 1, kTeam1Ships);
+
+        CHECK(redGoals[2].role == ShipRole::Escort);
+        CHECK(redGoals[2].protectedShipId == 3);
+        CHECK(redGoals[2].targetShipId == 0);
+        CHECK(blueGoals[2].role == ShipRole::Interceptor);
+    }
+}
+
 TEST_SUITE("TeamShipController") {
+    TEST_CASE("self-defense holds fire when an ally is between the ship and its target") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildTeamMap();
+        map.shipSpawns[0].headingDegrees = 90.0f;
+        map.shipSpawns[1].position = Vector2{85.0f, 50.0f};
+        map.shipSpawns[3].position = Vector2{140.0f, 50.0f};
+        const World world(config, map);
+        TeamShipController controller(std::make_shared<UtilityTeamStrategy>(), 0, kTeam0Ships);
+
+        const auto action = controller.decide(world, 0);
+        CHECK(controller.lastRole() == ShipRole::SelfDefense);
+        CHECK_FALSE(action.shoot);
+    }
+
+    TEST_CASE("an interceptor fires again while it stays lined up on an enemy") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        MapDefinition map = buildTeamMap();
+        map.shipSpawns[2] = ShipSpawnPoint{Vector2{600.0f, 500.0f}, 90.0f, 0};
+        map.shipSpawns[5].position = Vector2{875.0f, 500.0f};
+        World world(config, map);
+        TeamShipController interceptor(std::make_shared<UtilityTeamStrategy>(), 0, kTeam0Ships);
+
+        auto actions = noActionsForSixShips();
+        for (int i = 0; i < 24; ++i) {
+            actions[2] = interceptor.decide(world, 2);
+            world.step(actions, kFixedDeltaSeconds);
+        }
+
+        REQUIRE(world.bullets().size() == 2);
+        CHECK(world.bullets()[0].ownerShipId() == 2);
+        CHECK(world.bullets()[1].ownerShipId() == 2);
+    }
+
     TEST_CASE("decide() produces the controlled ship's goal translated into a ShipAction") {
         SimulationConfig config;
         config.mode = GameMode::TeamResourceBattle;

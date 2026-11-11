@@ -27,12 +27,13 @@ bool isShipCarryingAnyResource(const core::World& world, int shipId) noexcept {
     return false;
 }
 
-std::optional<Vector2> nearestAvailableResourcePosition(const core::World& world, Vector2 from) noexcept {
+std::optional<Vector2> nearestAvailableResourcePosition(const core::World& world, Vector2 from,
+                                                       std::optional<Vector2> excluded) noexcept {
     std::optional<Vector2> nearestPosition;
     float nearestDistanceSquared = std::numeric_limits<float>::max();
 
     for (const Resource& resource : world.resources()) {
-        if (resource.state() != ResourceState::AtSpawn) {
+        if (resource.state() != ResourceState::AtSpawn || resource.spawnPosition() == excluded) {
             continue;
         }
         const float distanceSquared = core::distanceSquared(from, resource.spawnPosition());

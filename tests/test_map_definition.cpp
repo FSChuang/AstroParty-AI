@@ -52,6 +52,8 @@ TEST_SUITE("MapDefinition") {
         const auto path = writeTempFile("astroparty_map_full.json", R"({
             "name": "test_arena",
             "arenaSize": {"x": 800.0, "y": 600.0},
+            "winningScore": 7,
+            "matchDurationSeconds": 90,
             "shipSpawns": [
                 {"position": {"x": 50.0, "y": 50.0}, "headingDegrees": 45.0},
                 {"position": {"x": 750.0, "y": 550.0}, "headingDegrees": 225.0}
@@ -64,6 +66,8 @@ TEST_SUITE("MapDefinition") {
         const MapDefinition map = MapDefinition::loadFromFile(path);
 
         CHECK(map.name == "test_arena");
+        CHECK(map.winningScore == 7);
+        CHECK(map.matchDurationSeconds == 90);
         CHECK(map.arenaSize.x == doctest::Approx(800.0f));
         CHECK(map.arenaSize.y == doctest::Approx(600.0f));
         REQUIRE(map.shipSpawns.size() == 2);
@@ -87,6 +91,17 @@ TEST_SUITE("MapDefinition") {
 
         CHECK(map.shipSpawns[0].headingDegrees == doctest::Approx(0.0f));
         CHECK(map.obstacles.empty());
+        CHECK_FALSE(map.winningScore.has_value());
+    }
+
+    TEST_CASE("loadFromFile rejects a zero or fractional winning score") {
+        for (const std::string score : {"0", "3.5"}) {
+            const auto path = writeTempFile("astroparty_map_bad_score.json",
+                R"({"arenaSize": {"x": 400, "y": 300}, "shipSpawns": [
+                    {"position": {"x": 20, "y": 20}}, {"position": {"x": 380, "y": 280}}
+                ], "winningScore": )" + score + "}");
+            CHECK_THROWS_AS((void)MapDefinition::loadFromFile(path), std::invalid_argument);
+        }
     }
 
     TEST_CASE("loadFromFile throws for a file that does not exist") {

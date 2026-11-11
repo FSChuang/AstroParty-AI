@@ -1,8 +1,12 @@
 #include "astroparty/rendering/GameRenderer.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <memory>
+#include <stdexcept>
+#include <string>
 
 #include "astroparty/core/Vector2.hpp"
 
@@ -58,11 +62,56 @@ void drawCircleOutline(SDL_Renderer* renderer, Vector2 center, float radius) {
     }
 }
 
+void drawRoleMarker(SDL_Renderer* renderer, Vector2 position, float radius, ai::ShipRole role) {
+    constexpr float size = 6.0f;
+    const float x = position.x;
+    const float y = std::max(size, position.y - radius - 9.0f);
+    switch (role) {
+        case ai::ShipRole::Interceptor: {
+            const SDL_FPoint diamond[] = {{x, y - size}, {x + size, y}, {x, y + size},
+                                          {x - size, y}, {x, y - size}};
+            SDL_SetRenderDrawColor(renderer, 255, 145, 45, 255);
+            SDL_RenderDrawLinesF(renderer, diamond, 5);
+            break;
+        }
+        case ai::ShipRole::Escort: {
+            const SDL_FRect square{x - size, y - size, size * 2.0f, size * 2.0f};
+            SDL_SetRenderDrawColor(renderer, 195, 135, 255, 255);
+            SDL_RenderDrawRectF(renderer, &square);
+            break;
+        }
+        case ai::ShipRole::SelfDefense:
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderDrawLineF(renderer, x - size, y, x + size, y);
+            SDL_RenderDrawLineF(renderer, x, y - size, x, y + size);
+            break;
+        case ai::ShipRole::Collector:
+        case ai::ShipRole::Defender:
+            break;
+    }
+}
+
+void saveFrame(SDL_Renderer* renderer, const char* path) {
+    int width = 0;
+    int height = 0;
+    if (SDL_GetRendererOutputSize(renderer, &width, &height) != 0) {
+        throw std::runtime_error(std::string("Could not get frame size: ") + SDL_GetError());
+    }
+    std::unique_ptr<SDL_Surface, decltype(&SDL_FreeSurface)> frame(
+        SDL_CreateRGBSurfaceWithFormat(0, width, height, 32, SDL_PIXELFORMAT_ARGB8888), SDL_FreeSurface);
+    if (!frame || SDL_RenderReadPixels(renderer, nullptr, SDL_PIXELFORMAT_ARGB8888,
+                                      frame->pixels, frame->pitch) != 0
+        || SDL_SaveBMP(frame.get(), path) != 0) {
+        throw std::runtime_error(std::string("Could not save frame: ") + SDL_GetError());
+    }
+}
+
 }  // namespace
 
 GameRenderer::GameRenderer(SdlRenderer& renderer) noexcept : renderer_(renderer) {}
 
-void GameRenderer::renderFrame(const core::World& world) {
+void GameRenderer::renderFrame(const core::World& world, const char* captureBmpPath,
+                               std::span<const ai::ShipRole> shipRoles) {
     clearBackground();
 
     for (const core::ObstacleDefinition& obstacle : world.obstacles()) {
@@ -80,6 +129,9 @@ void GameRenderer::renderFrame(const core::World& world) {
         const int teamId = world.teamIdOfShip(ship.id());
         const int colorIndex = (teamId != -1) ? teamId : (ship.id() % static_cast<int>(kShipColors.size()));
         drawShip(ship, collisionRadius, colorIndex);
+        if (const auto id = static_cast<std::size_t>(ship.id()); id < shipRoles.size()) {
+            drawRoleMarker(renderer_.handle(), ship.position(), collisionRadius, shipRoles[id]);
+        }
     }
 
     for (const entities::Resource& resource : world.resources()) {
@@ -95,6 +147,9 @@ void GameRenderer::renderFrame(const core::World& world) {
         drawBullet(bullet);
     }
 
+    if (captureBmpPath != nullptr) {
+        saveFrame(renderer_.handle(), captureBmpPath);
+    }
     SDL_RenderPresent(renderer_.handle());
 }
 

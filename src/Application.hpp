@@ -31,8 +31,12 @@ struct ApplicationOptions {
     // already relies on for its own config/map flags.
     std::string configPath = "configs/team_resource_battle.json";
     std::string mapPath = "configs/maps/team_arena.json";
+    bool generateMap = false;
+    std::optional<std::string> mapSize;
+    std::optional<std::string> mapSeed;
     std::string team0Strategy = "strategic";
-    std::string team1Strategy = "baseline";
+    std::string team1Strategy = "red";
+    std::optional<std::string> captureFrame;
 };
 
 // Owns SDL's lifetime, the window, the simulation, and the per-ship
@@ -55,12 +59,13 @@ public:
     int run();
 
 private:
+    core::World world_;
     rendering::SdlLibraryGuard sdlLibrary_;
     rendering::SdlWindow window_;
     rendering::SdlRenderer renderer_;
     rendering::GameRenderer gameRenderer_;
-    core::World world_;
     std::vector<std::unique_ptr<input::IShipController>> shipControllers_;
+    std::optional<std::string> captureFrame_;
 
     bool isRunning_ = true;
     bool restartKeyWasPressed_ = false;

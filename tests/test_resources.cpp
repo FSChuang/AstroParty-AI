@@ -243,6 +243,48 @@ TEST_SUITE("World Team Resource Battle gameplay") {
         CHECK(*world.teamMatchState().winningTeamId() == 0);
     }
 
+    TEST_CASE("a map's winning score controls when the match ends") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        config.winningScore = 1;
+        MapDefinition map = buildValidTeamMap();
+        const auto spot = map.homeRegions[0].position;
+        map.shipSpawns[0].position = spot;
+        map.resourceSpawnPoints = {spot};
+        const auto actions = noActionsForSixShips();
+
+        for (const int target : {3, 5, 7}) {
+            map.winningScore = target;
+            World world(config, map);
+            for (int i = 1; i < target; ++i) {
+                world.step(actions, kFixedDeltaSeconds);
+                CHECK(world.teamScores()[0] == i);
+                CHECK_FALSE(world.teamMatchState().hasEnded());
+            }
+            world.step(actions, kFixedDeltaSeconds);
+            CHECK(world.teamScores()[0] == target);
+            CHECK(world.teamMatchState().winningTeamId() == 0);
+        }
+    }
+
+    TEST_CASE("a map's match duration uses the configured tick rate") {
+        SimulationConfig config;
+        config.mode = GameMode::TeamResourceBattle;
+        config.tickRateHz = 2.0f;
+        config.maxMatchTicks = 1;
+        auto map = buildValidTeamMap();
+        map.matchDurationSeconds = 2;
+        World world(config, map);
+        const auto actions = noActionsForSixShips();
+
+        for (int tick = 0; tick < 3; ++tick) {
+            world.step(actions, config.fixedDeltaSeconds());
+            CHECK_FALSE(world.teamMatchState().hasEnded());
+        }
+        world.step(actions, config.fixedDeltaSeconds());
+        CHECK(world.teamMatchState().outcome() == TeamMatchOutcome::Draw);
+    }
+
     TEST_CASE("a resource carried by an eliminated ship is dropped back to its spawn point") {
         SimulationConfig config;
         config.mode = GameMode::TeamResourceBattle;

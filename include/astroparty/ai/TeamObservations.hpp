@@ -24,9 +24,10 @@ namespace astroparty::ai {
 [[nodiscard]] bool isShipCarryingAnyResource(const core::World& world, int shipId) noexcept;
 
 // The spawn position of the nearest currently-available (AtSpawn) resource
-// to `from`, or std::nullopt if none are available.
+// to `from`, skipping the excluded position when supplied. Returns
+// std::nullopt if no eligible resource is available.
 [[nodiscard]] std::optional<core::Vector2> nearestAvailableResourcePosition(const core::World& world,
-                                                                             core::Vector2 from) noexcept;
+    core::Vector2 from, std::optional<core::Vector2> excluded = std::nullopt) noexcept;
 
 // The ship ID of the nearest alive ship NOT on `ownTeamId` to `from`, or
 // std::nullopt if no enemy ship is alive.

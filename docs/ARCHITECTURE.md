@@ -114,8 +114,8 @@ Two implementations exist today:
 
 | Controller | Lives in | SDL? | Behavior |
 |---|---|---|---|
-| `KeyboardShipController` | `astroparty_platform` | Yes | Reads live SDL key state for two fixed scancodes; ignores `world` entirely. |
-| `ScriptedShipController` | `astroparty_sim` | No | Replays a fixed, repeating pattern (turn on alternating ticks; shoot every N ticks); also ignores `world`. **Not an AI** -- it exists so the headless runner and tests have a controller that needs no human and no reactive logic. |
+| `KeyboardShipController` | `astroparty_platform` | Yes | Reads live SDL key state for turning, throttle, and shooting. |
+| `ScriptedShipController` | `astroparty_sim` | No | Holds full thrust and follows a fixed pattern for turning and shooting. Used by the classic headless runner and tests. |
 | `ai::TeamShipController` | `astroparty_sim` | No | Delegates to a shared `ai::ITeamStrategy` for its ship's current goal, then to `ai::UnitBehaviors` to turn that goal into a `ShipAction`; reads `world` to steer and to let its strategy observe match state. See "AI module" below. |
 
 `Application` and `headless::runMatch`/`headless::runTeamMatch` all treat
@@ -268,9 +268,10 @@ The rules, chosen for simplicity over completeness:
   deliberately no third "dropped at an arbitrary location" state, which
   would be a second, harder-to-keep-consistent source of truth for "where is
   this resource."
-- **Pickup.** Any alive ship not already carrying a resource that comes
+- **Pickup.** An eligible living ship without a resource that comes
   within `config().resourcePickupRadius` of an `AtSpawn` resource picks it
-  up. A ship can carry at most one resource at a time.
+  up. Pickup is allowed by default. Interceptor, Escort, and Self-Defense actions opt out
+  to keep ships on combat duty. A ship can carry at most one resource at a time.
 - **Delivery.** A carrying ship that reaches its *own* team's home region
   (within that region's radius) scores one point for its team and the
   resource immediately returns to `AtSpawn` at its original spawn point --
@@ -326,19 +327,15 @@ TeamShipController::decide()  →  implements IShipController
   Both strategies below call *only* these functions to read the match --
   neither has access to anything the other lacks, which is what makes a
   Strategic-vs-Baseline comparison fair (see "Baseline opponent" below).
-- **`Steering.hpp` / `UnitBehaviors.hpp`**: `headingToward`,
-  `clockwiseRotationNeeded`, `shouldTurnToFace`, and `isObstacleAhead` are
-  the shared math every role is built from (the ship can only ever turn
-  clockwise -- there is no turn-left control -- so steering is phrased as
-  "how much clockwise rotation is needed," not a signed angle).
-  `moveToward()` turns toward a target position, reactively turning away
-  instead whenever `isObstacleAhead()` says the straight-ahead path is
-  blocked (a simple reactive avoidance, not path planning -- acceptable at
-  this project's scale of a handful of obstacles per map, not a dense
-  field). `pursueAndAttack()` does the same steering and additionally fires
-  once aimed and in range, independent of whether it is also dodging an
-  obstacle that tick (bullet/obstacle collision is handled separately by
-  `World`, so firing while turning is harmless, just sometimes wasted).
+- **`Steering.hpp` / `UnitBehaviors.hpp`**: `moveToward()` picks a travel
+  heading with a short obstacle lookahead, then uses the difference between
+  desired and actual velocity to steer and apply throttle. It takes the
+  shortest turn in either direction, slows on approach, and brakes if an
+  obstacle is within its predicted stopping distance. The obstacle check is
+  local, so it does not plan a route through the entire arena.
+  `pursueAndAttack()` closes on enemies, leads moving targets within firing
+  range, and brakes at a standoff distance. The controller requests
+  individual shots at intervals while it has a clear firing lane.
 - **`TeamShipController`**: adapts an `ITeamStrategy` to `IShipController`.
   Multiple `TeamShipController`s on one team share one `ITeamStrategy`
   instance (`shared_ptr`) and each independently calls `assignGoals()` with
@@ -359,7 +356,7 @@ unit-controller layer: a strategy never produces a `ShipAction` itself
 (it doesn't see the other ships' assignments) -- the two concerns are
 strictly separated through this one data structure.
 
-Suggested roles are `Collector`, `Defender`, `Interceptor`, `Escort`; not
+Roles are `Collector`, `Defender`, `Interceptor`, `Escort`, and `SelfDefense`; not
 every situation uses all four.
 
 `UtilityTeamStrategy` is this project's real strategic AI: a simple,
@@ -369,14 +366,19 @@ pool of this team's not-yet-assigned, alive ships in priority order:
 
 1. **Collector (deliver).** Any ship already carrying a resource always
    heads home, overriding everything else.
-2. **Interceptor.** If an enemy carrier is within a threat radius of this
+2. **Two collectors and a support ship.** When a full team can spare a ship,
+   it escorts the most threatened ally, prioritizing carriers. An escort
+   tracks both its ally and the enemy, so it can move between them. With no
+   threatened ally, blue pursues enemies while red screens its home side
+   and reacts to intruders. Red also assigns escorts at a wider radius.
+3. **Escort.** If the full formation cannot be established, assign the
+   nearest available ship to a threatened carrier when possible.
+4. **Interceptor.** If an enemy carrier is within a threat radius of this
    team's home region, the nearest remaining ship is sent to stop it.
-3. **Escort.** If this team has a carrier and an enemy is closing in on it,
-   the nearest remaining ship is sent to engage that threat.
-4. **Collector (gather).** Each remaining ship is sent after the nearest
-   currently-available resource.
-5. **Defender.** Anyone still unassigned (e.g. no resource is currently
-   available) patrols this team's home region.
+5. **Gather or defend.** The remaining ships collect available resources or
+   guard home. Unladen collectors and defenders temporarily fight in
+   **Self-Defense** when an enemy is within 100 units. They resume their
+   task as soon as the immediate threat clears.
 
 Recomputing this fresh every tick, rather than maintaining explicit
 "sticky" role state, is a deliberate choice: it is what makes **dynamic

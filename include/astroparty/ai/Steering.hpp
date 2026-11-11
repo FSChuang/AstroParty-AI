@@ -19,18 +19,14 @@ namespace astroparty::ai {
 // well-defined direction).
 [[nodiscard]] float headingToward(core::Vector2 from, core::Vector2 to) noexcept;
 
-// Ships in this game can only turn clockwise (there is no turn-left
-// control -- see ShipAction::turnRight), so "how aligned am I with a
-// target heading" is always a one-directional sweep, never a signed
-// left/right difference. Returns the clockwise rotation, in degrees within
-// [0, 360), that `currentHeadingDegrees` would need to sweep through to
-// reach `targetHeadingDegrees`.
+// Returns the clockwise rotation in degrees within [0, 360).
 [[nodiscard]] float clockwiseRotationNeeded(float currentHeadingDegrees, float targetHeadingDegrees) noexcept;
 
-// Decides whether to hold the turn button this step in order to (eventually)
-// face `targetHeadingDegrees`, given turning is clockwise-only and happens
-// at a fixed rate. Stops turning once within `toleranceDegrees` of the
-// target, rather than overshooting back and forth every step.
+// Shortest turn to the target. Positive is right, negative is left.
+// An exact half turn chooses right.
+[[nodiscard]] float signedRotationNeeded(float currentHeadingDegrees, float targetHeadingDegrees) noexcept;
+
+// True when the heading error exceeds the alignment tolerance.
 [[nodiscard]] bool shouldTurnToFace(float currentHeadingDegrees, float targetHeadingDegrees,
                                     float toleranceDegrees) noexcept;
 

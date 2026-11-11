@@ -29,10 +29,11 @@ def run_once(executable, config, map_path, max_ticks, team0_strategy, team1_stra
         executable,
         "--config", config,
         "--map", map_path,
-        "--max-ticks", str(max_ticks),
         "--team0-strategy", team0_strategy,
         "--team1-strategy", team1_strategy,
     ]
+    if max_ticks is not None:
+        command += ["--max-ticks", str(max_ticks)]
     completed = subprocess.run(command, capture_output=True, text=True, check=True)
     return json.loads(completed.stdout)
 
@@ -101,9 +102,9 @@ def parse_args():
     parser.add_argument("--executable", default="build/AstroPartyAI-headless", help="Path to AstroPartyAI-headless")
     parser.add_argument("--config", default="configs/team_resource_battle.json")
     parser.add_argument("--map", dest="map_path", default="configs/maps/team_arena.json")
-    parser.add_argument("--max-ticks", type=int, default=3600)
-    parser.add_argument("--team0-strategy", choices=["strategic", "baseline"], default="strategic")
-    parser.add_argument("--team1-strategy", choices=["strategic", "baseline"], default="baseline")
+    parser.add_argument("--max-ticks", type=int, help="override the headless runner's default tick budget")
+    parser.add_argument("--team0-strategy", choices=["strategic", "red", "baseline"], default="strategic")
+    parser.add_argument("--team1-strategy", choices=["strategic", "red", "baseline"], default="baseline")
     parser.add_argument("--runs", type=int, default=20)
     parser.add_argument("--csv", default=None, help="Optional path to write a per-run CSV of results")
     return parser.parse_args()

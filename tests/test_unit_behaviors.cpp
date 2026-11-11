@@ -13,7 +13,7 @@ using astroparty::core::Vector2;
 using astroparty::entities::Ship;
 
 namespace {
-constexpr float kShipCollisionRadius = 12.0f;
+const astroparty::core::SimulationConfig kConfig{};
 const std::vector<ObstacleDefinition> kNoObstacles{};
 }  // namespace
 
@@ -23,9 +23,11 @@ TEST_SUITE("ai::moveToward") {
         Ship ship(0, Vector2{0.0f, 0.0f}, 0.0f);
 
         const ShipAction action = astroparty::ai::moveToward(ship, Vector2{0.0f, -500.0f}, kNoObstacles,
-                                                               kShipCollisionRadius);
+                                                               kConfig);
 
         CHECK_FALSE(action.turnRight);
+        CHECK_FALSE(action.turnLeft);
+        CHECK(action.throttle > 0.0f);
         CHECK_FALSE(action.shoot);
     }
 
@@ -33,16 +35,25 @@ TEST_SUITE("ai::moveToward") {
         Ship ship(0, Vector2{0.0f, 0.0f}, 0.0f);
 
         const ShipAction action = astroparty::ai::moveToward(ship, Vector2{500.0f, 0.0f}, kNoObstacles,
-                                                               kShipCollisionRadius);
+                                                               kConfig);
 
         CHECK(action.turnRight);
+        CHECK(action.throttle == 0.0f);
+    }
+
+    TEST_CASE("turns left when it is the shorter route to the target") {
+        const Ship ship(0, Vector2{0.0f, 0.0f}, 10.0f);
+        const ShipAction action = astroparty::ai::moveToward(ship, Vector2{-50.0f, -500.0f}, kNoObstacles, kConfig);
+
+        CHECK(action.turnLeft);
+        CHECK_FALSE(action.turnRight);
     }
 
     TEST_CASE("never shoots regardless of alignment") {
         Ship ship(0, Vector2{0.0f, 0.0f}, 180.0f);
 
         const ShipAction action = astroparty::ai::moveToward(ship, Vector2{0.0f, 500.0f}, kNoObstacles,
-                                                               kShipCollisionRadius);
+                                                               kConfig);
 
         CHECK_FALSE(action.shoot);
     }
@@ -52,7 +63,7 @@ TEST_SUITE("ai::moveToward") {
         const std::vector<ObstacleDefinition> obstacles{{Vector2{0.0f, -60.0f}, 20.0f}};
 
         const ShipAction action = astroparty::ai::moveToward(ship, Vector2{0.0f, -500.0f}, obstacles,
-                                                               kShipCollisionRadius);
+                                                               kConfig);
 
         CHECK(action.turnRight);
     }
@@ -62,9 +73,33 @@ TEST_SUITE("ai::moveToward") {
         const std::vector<ObstacleDefinition> obstacles{{Vector2{1000.0f, 1000.0f}, 20.0f}};
 
         const ShipAction action = astroparty::ai::moveToward(ship, Vector2{0.0f, -500.0f}, obstacles,
-                                                               kShipCollisionRadius);
+                                                               kConfig);
 
         CHECK_FALSE(action.turnRight);
+    }
+}
+
+TEST_SUITE("ai::moveWhileAvoidingEnemy") {
+    TEST_CASE("sidesteps an enemy on its route while keeping pickup enabled") {
+        const Ship collector(0, Vector2{500.0f, 350.0f}, 90.0f);
+        const Ship enemy(1, Vector2{575.0f, 350.0f}, 270.0f);
+        const auto action = astroparty::ai::moveWhileAvoidingEnemy(
+            collector, Vector2{900.0f, 350.0f}, enemy, kNoObstacles, kConfig);
+
+        CHECK(action.turnRight);
+        CHECK_FALSE(action.shoot);
+        CHECK(action.allowResourcePickup);
+    }
+
+    TEST_CASE("finishes a pickup already within reach") {
+        const Ship collector(0, Vector2{500.0f, 350.0f}, 90.0f);
+        const Ship enemy(1, Vector2{575.0f, 350.0f}, 270.0f);
+        const auto action = astroparty::ai::moveWhileAvoidingEnemy(
+            collector, Vector2{520.0f, 350.0f}, enemy, kNoObstacles, kConfig);
+
+        CHECK_FALSE(action.turnLeft);
+        CHECK_FALSE(action.turnRight);
+        CHECK(action.throttle > 0.0f);
     }
 }
 
@@ -73,7 +108,7 @@ TEST_SUITE("ai::pursueAndAttack") {
         Ship ship(0, Vector2{0.0f, 0.0f}, 0.0f);  // Facing -Y.
 
         const ShipAction action =
-            astroparty::ai::pursueAndAttack(ship, Vector2{0.0f, -100.0f}, kNoObstacles, kShipCollisionRadius,
+            astroparty::ai::pursueAndAttack(ship, Vector2{0.0f, -100.0f}, kNoObstacles, kConfig,
                                              /*engagementRange=*/300.0f);
 
         CHECK(action.shoot);
@@ -83,7 +118,7 @@ TEST_SUITE("ai::pursueAndAttack") {
         Ship ship(0, Vector2{0.0f, 0.0f}, 0.0f);
 
         const ShipAction action =
-            astroparty::ai::pursueAndAttack(ship, Vector2{0.0f, -1000.0f}, kNoObstacles, kShipCollisionRadius,
+            astroparty::ai::pursueAndAttack(ship, Vector2{0.0f, -1000.0f}, kNoObstacles, kConfig,
                                              /*engagementRange=*/300.0f);
 
         CHECK_FALSE(action.shoot);
@@ -93,26 +128,31 @@ TEST_SUITE("ai::pursueAndAttack") {
         Ship ship(0, Vector2{0.0f, 0.0f}, 0.0f);  // Facing -Y; target is to the side.
 
         const ShipAction action =
-            astroparty::ai::pursueAndAttack(ship, Vector2{100.0f, 0.0f}, kNoObstacles, kShipCollisionRadius,
+            astroparty::ai::pursueAndAttack(ship, Vector2{100.0f, 0.0f}, kNoObstacles, kConfig,
                                              /*engagementRange=*/300.0f);
 
         CHECK_FALSE(action.shoot);
         CHECK(action.turnRight);
     }
 
-    TEST_CASE("still steers around an obstacle ahead even while aimed at and in range of its target") {
-        // Obstacle-vs-bullet collision is handled separately by World's
-        // resolveBulletObstacleCollisions, so pursueAndAttack does not need
-        // to (and deliberately does not) suppress firing just because it is
-        // also avoiding an obstacle -- the two concerns are independent.
+    TEST_CASE("steers around an obstacle instead of firing into it") {
         Ship ship(0, Vector2{0.0f, 0.0f}, 0.0f);
         const std::vector<ObstacleDefinition> obstacles{{Vector2{0.0f, -60.0f}, 20.0f}};
 
         const ShipAction action =
-            astroparty::ai::pursueAndAttack(ship, Vector2{0.0f, -100.0f}, obstacles, kShipCollisionRadius,
+            astroparty::ai::pursueAndAttack(ship, Vector2{0.0f, -100.0f}, obstacles, kConfig,
                                              /*engagementRange=*/300.0f);
 
         CHECK(action.turnRight);
-        CHECK(action.shoot);
+        CHECK_FALSE(action.shoot);
+    }
+
+    TEST_CASE("leads a target moving across the firing lane") {
+        const Ship ship(0, Vector2{0.0f, 0.0f}, 0.0f);
+        const auto action = astroparty::ai::pursueAndAttack(ship, Vector2{0.0f, -200.0f},
+            kNoObstacles, kConfig, 300.0f, Vector2{100.0f, 0.0f});
+
+        CHECK(action.turnRight);
+        CHECK_FALSE(action.shoot);
     }
 }

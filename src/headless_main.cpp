@@ -25,19 +25,15 @@
 
 namespace {
 
-// Which strategy a team uses in a Team Resource Battle headless run.
-// "strategic" is this project's real strategic AI (UtilityTeamStrategy);
-// "baseline" is the simpler fixed-role opponent (BaselineTeamStrategy) --
-// see docs/ARCHITECTURE.md's "Baseline opponent" section. Choosing the same
-// value for both teams runs Strategic-vs-Strategic or Baseline-vs-Baseline;
-// choosing different values runs the primary Strategic-vs-Baseline evaluation.
+// Team Resource Battle defaults to the offensive blue and defensive red
+// strategies. Use the strategy flags to choose another pairing.
 struct CommandLineOptions {
     std::optional<std::string> configPath;
     std::optional<std::string> mapPath;
-    int maxTicks = 3600;  // 60 seconds of simulated time at the default 60 Hz tick rate.
+    std::optional<int> maxTicks;
     std::optional<std::string> outputPath;
     std::string team0Strategy = "strategic";
-    std::string team1Strategy = "baseline";
+    std::string team1Strategy = "red";
 };
 
 CommandLineOptions parseCommandLine(int argc, char** argv) {
@@ -103,12 +99,15 @@ int main(int argc, char** argv) {
         std::string json;
         if (world.mode() == astroparty::core::GameMode::TeamResourceBattle) {
             auto controllers = astroparty::ai::makeTeamControllers(world, options.team0Strategy, options.team1Strategy);
+            const int teamLimit = world.config().maxMatchTicks;
+            const int tickBudget = options.maxTicks.value_or(teamLimit > 0 ? teamLimit : 3600);
             const astroparty::headless::TeamMatchResult result =
-                astroparty::headless::runTeamMatch(world, controllers, options.maxTicks);
+                astroparty::headless::runTeamMatch(world, controllers, tickBudget);
             json = result.toJsonString();
         } else {
             auto controllers = makeDefaultControllers(world.ships().size());
-            const astroparty::headless::MatchResult result = astroparty::headless::runMatch(world, controllers, options.maxTicks);
+            const astroparty::headless::MatchResult result =
+                astroparty::headless::runMatch(world, controllers, options.maxTicks.value_or(3600));
             json = result.toJsonString();
         }
 

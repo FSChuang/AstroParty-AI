@@ -1,5 +1,6 @@
 #include "astroparty/ai/Steering.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace astroparty::ai {
@@ -33,14 +34,13 @@ float clockwiseRotationNeeded(float currentHeadingDegrees, float targetHeadingDe
     return normalizeDegrees(targetHeadingDegrees - currentHeadingDegrees);
 }
 
+float signedRotationNeeded(float currentHeadingDegrees, float targetHeadingDegrees) noexcept {
+    const float clockwise = clockwiseRotationNeeded(currentHeadingDegrees, targetHeadingDegrees);
+    return clockwise > 180.0f ? clockwise - 360.0f : clockwise;
+}
+
 bool shouldTurnToFace(float currentHeadingDegrees, float targetHeadingDegrees, float toleranceDegrees) noexcept {
-    const float needed = clockwiseRotationNeeded(currentHeadingDegrees, targetHeadingDegrees);
-    // `needed` near 0 means the target is just ahead (about to be reached by
-    // continuing to turn); `needed` near 360 means the target was just
-    // passed (turning further would only move away from it before wrapping
-    // all the way back around). Both count as "aligned enough."
-    const bool alreadyAligned = (needed < toleranceDegrees) || (needed > 360.0f - toleranceDegrees);
-    return !alreadyAligned;
+    return std::abs(signedRotationNeeded(currentHeadingDegrees, targetHeadingDegrees)) > toleranceDegrees;
 }
 
 bool isObstacleAhead(Vector2 position, float headingDegrees, float travelerRadius,
@@ -51,13 +51,13 @@ bool isObstacleAhead(Vector2 position, float headingDegrees, float travelerRadiu
     for (const core::ObstacleDefinition& obstacle : obstacles) {
         const Vector2 toObstacle = obstacle.position - position;
         const float forwardDistance = toObstacle.x * forward.x + toObstacle.y * forward.y;
-        if (forwardDistance <= 0.0f || forwardDistance > lookaheadDistance) {
-            continue;  // Behind us, or farther ahead than we're looking.
+        if (forwardDistance <= 0.0f && toObstacle.lengthSquared() > 0.0f) {
+            continue;  // Moving away, including when starting in the clearance margin.
         }
 
-        const Vector2 closestPointOnPath = position + forward * forwardDistance;
-        const float perpendicularDistance = (obstacle.position - closestPointOnPath).length();
-        if (perpendicularDistance < obstacle.radius + travelerRadius + clearance) {
+        const Vector2 closestPointOnPath = position + forward * std::clamp(forwardDistance, 0.0f, lookaheadDistance);
+        const float radius = obstacle.radius + travelerRadius + clearance;
+        if (core::distanceSquared(obstacle.position, closestPointOnPath) < radius * radius) {
             return true;
         }
     }

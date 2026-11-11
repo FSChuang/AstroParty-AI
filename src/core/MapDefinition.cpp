@@ -1,6 +1,7 @@
 #include "astroparty/core/MapDefinition.hpp"
 
 #include <fstream>
+#include <limits>
 #include <stdexcept>
 
 #include <nlohmann/json.hpp>
@@ -13,6 +14,12 @@ void MapDefinition::validate() const {
     }
     if (shipSpawns.size() < 2) {
         throw std::invalid_argument("MapDefinition '" + name + "': at least two ship spawn points are required");
+    }
+    if (winningScore && *winningScore <= 0) {
+        throw std::invalid_argument("MapDefinition '" + name + "': winningScore must be positive");
+    }
+    if (matchDurationSeconds && *matchDurationSeconds <= 0) {
+        throw std::invalid_argument("MapDefinition '" + name + "': matchDurationSeconds must be positive");
     }
 
     for (std::size_t i = 0; i < obstacles.size(); ++i) {
@@ -75,6 +82,20 @@ namespace {
 
 Vector2 vectorFromJson(const nlohmann::json& json) { return Vector2{json.at("x").get<float>(), json.at("y").get<float>()}; }
 
+std::optional<int> optionalPositiveInt(const nlohmann::json& json, const char* key, const std::string& mapName) {
+    const auto entry = json.find(key);
+    if (entry == json.end()) {
+        return std::nullopt;
+    }
+    if (entry->is_number_integer()) {
+        const double number = entry->get<double>();
+        if (number >= 1.0 && number <= std::numeric_limits<int>::max()) {
+            return static_cast<int>(number);
+        }
+    }
+    throw std::invalid_argument("MapDefinition '" + mapName + "': " + key + " must be a positive integer");
+}
+
 }  // namespace
 
 MapDefinition MapDefinition::loadFromFile(const std::filesystem::path& path) {
@@ -95,6 +116,8 @@ MapDefinition MapDefinition::loadFromFile(const std::filesystem::path& path) {
         map.name = json.value("name", path.stem().string());
         const auto& arena = json.at("arenaSize");
         map.arenaSize = vectorFromJson(arena);
+        map.winningScore = optionalPositiveInt(json, "winningScore", map.name);
+        map.matchDurationSeconds = optionalPositiveInt(json, "matchDurationSeconds", map.name);
 
         for (const auto& spawn : json.at("shipSpawns")) {
             ShipSpawnPoint point;

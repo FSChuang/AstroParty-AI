@@ -10,11 +10,10 @@ automated match evaluation.
 
 ## Overview
 
-In AstroParty-AI, each ship accelerates continuously — there is no "stop" or
-"reverse" control. The only way to survive is to steer (ships turn one
-direction only) while lining up a shot on an opponent. That one constraint
-is the entire skill ceiling of the game, for both human players and AI
-controllers.
+Ships can turn left or right, apply forward thrust, and brake. Releasing
+the throttle lets the ship coast, so facing and travel direction can differ.
+The team AI uses the same controls to steer around obstacles and slow down
+near its targets.
 
 The project is split cleanly into two halves that never depend on each
 other in the wrong direction: a **simulation core** with zero dependency on
@@ -25,8 +24,8 @@ automated AI-vs-AI evaluation possible in the first place.
 
 ## Current features
 
-- Two-player local graphical **Classic Deathmatch** (continuous acceleration,
-  turning, edge-triggered shooting, circular bullet/ship collision, win/draw
+- Two-player local graphical **Classic Deathmatch** (two-way turning,
+  thrust and braking, edge-triggered shooting, circular bullet/ship collision, win/draw
   detection, manual restart)
 - A **Team Resource Battle** mode (3v3): two teams compete to collect Energy
   Core resources and deliver them to their own home region, with respawns,
@@ -66,7 +65,7 @@ See the [Roadmap](#roadmap) below for what's in progress or planned next.
 - **nlohmann/json** — configuration and map file parsing (fetched via CMake `FetchContent`)
 - **doctest** — unit testing, run through CTest (fetched via CMake `FetchContent`)
 - **GitHub Actions** — CI on Ubuntu and macOS
-- **Python** (standard library only) — offline analysis of headless match results; never part of the runtime simulation
+- **Python** (standard library only) — optional procedural arena generation and analysis of headless match results
 
 ## Installation / build
 
@@ -126,17 +125,34 @@ controller — this mode has no keyboard input):
 | `--mode <classic\|team>` | `classic` | Which game mode to run |
 | `--config <path>` | `configs/team_resource_battle.json` | `SimulationConfig` for `--mode team` |
 | `--map <path>` | `configs/maps/team_arena.json` | `MapDefinition` for `--mode team` |
-| `--team0-strategy <strategic\|baseline>` | `strategic` | Team 0's AI |
-| `--team1-strategy <strategic\|baseline>` | `baseline` | Team 1's AI |
+| `--generate-map` | off | Generate a fresh arena and start team mode |
+| `--map-size <small\|medium\|large>` | `medium` | Size preset for `--generate-map` |
+| `--map-seed <integer>` | random | Replay a generated arena with `--generate-map` |
+| `--team0-strategy <strategic\|red\|baseline>` | `strategic` | Team 0's AI |
+| `--team1-strategy <strategic\|red\|baseline>` | `red` | Team 1's AI |
 
 ## Controls
 
-| Player | Turn | Shoot |
-|---|---|---|
-| Player 1 (blue) | `D` | `W` |
-| Player 2 (red) | Right Arrow | Up Arrow |
+| Player | Turn left | Turn right | Thrust | Brake | Shoot |
+|---|---|---|---|---|---|
+| Player 1 (blue) | `A` | `D` | `W` | `S` | Space |
+| Player 2 (red) | Left Arrow | Right Arrow | Up Arrow | Down Arrow | `/` |
 
-(`--mode team` has no human-controlled ships; both teams are AI.)
+Thrust accelerates in the direction the ship faces. Braking slows the
+ship along its current velocity and stops at zero. Opposing keys cancel.
+
+Blue uses the offensive `strategic` policy. Red uses the `red` policy,
+which screens its home side and escorts carriers from farther away. Add
+`--team1-strategy strategic` for a mirror match or `--team1-strategy baseline`
+for the fixed-role opponent.
+
+Each strategic team can reserve one ship to support two collectors. That
+ship escorts threatened allies before returning to its usual pursuit or
+patrol. An unladen collector or defender switches to Self-Defense when an
+enemy gets within 100 units, then resumes its task when the threat moves
+away. Carriers evade and keep delivering. An orange diamond marks an
+Interceptor, a purple square marks an Escort, and a white plus marks
+Self-Defense.
 
 | Action | Key |
 |---|---|
@@ -159,7 +175,7 @@ Classic Deathmatch:
 ```
 
 ```json
-{ "outcome": "ShipWon", "winningShipId": 0, "ticksElapsed": 212 }
+{ "outcome": "Timeout", "winningShipId": null, "ticksElapsed": 3600 }
 ```
 
 Team Resource Battle (strategic AI vs. baseline AI, 3v3):
@@ -175,10 +191,10 @@ Team Resource Battle (strategic AI vs. baseline AI, 3v3):
 {
   "outcome": "TeamWon",
   "winningTeamId": 0,
-  "ticksElapsed": 3600,
-  "teamScores": [2, 1],
-  "resourcesCollected": [3, 2],
-  "shipsDestroyed": [0, 1]
+  "ticksElapsed": 3463,
+  "teamScores": [5, 0],
+  "resourcesCollected": [6, 2],
+  "shipsDestroyed": [0, 33]
 }
 ```
 
@@ -186,10 +202,10 @@ Team Resource Battle (strategic AI vs. baseline AI, 3v3):
 |---|---|---|
 | `--config <path>` | built-in defaults (Classic Deathmatch) | A `SimulationConfig` JSON file |
 | `--map <path>` | built-in two-ship layout | A `MapDefinition` JSON file |
-| `--max-ticks <N>` | `3600` | Fixed-step budget before declaring a timeout |
+| `--max-ticks <N>` | Team match limit, or `3600` without one | Fixed-step budget before declaring a timeout |
 | `--output <path>` | stdout | Where to write the JSON result |
-| `--team0-strategy <strategic\|baseline>` | `strategic` | Team 0's AI (Team Resource Battle only) |
-| `--team1-strategy <strategic\|baseline>` | `baseline` | Team 1's AI (Team Resource Battle only) |
+| `--team0-strategy <strategic\|red\|baseline>` | `strategic` | Team 0's AI (Team Resource Battle only) |
+| `--team1-strategy <strategic\|red\|baseline>` | `red` | Team 1's AI (Team Resource Battle only) |
 
 Because this binary links only the simulation library — never SDL2 — it
 runs anywhere, including CI containers, and can be invoked repeatedly by an
@@ -206,6 +222,76 @@ python3 scripts/run_team_experiments.py --runs 20 \
 Since the simulation has no randomness, repeated runs of an *identical*
 config/map/strategy pairing are identical; vary the map, config, or
 strategy pairing between runs to get a meaningful sample.
+
+## Procedural Team Resource Battle arenas
+
+To generate an arena and play it immediately, run from the repository root
+with `python3` on your PATH (macOS or Linux):
+
+```sh
+./build/AstroPartyAI --generate-map --map-size small
+./build/AstroPartyAI --generate-map --map-size large --map-seed 42
+```
+
+| Preset | Arena size | Default obstacles | Deliveries to win | Time limit with default config |
+|---|---|---:|---:|---|
+| Small | 960 × 540 | 2 | 3 | 60 seconds |
+| Medium (default) | 1280 × 720 | 4 | 5 | 60 seconds |
+| Large | 1600 × 900 | 6 | 7 | 90 seconds |
+
+Generated maps store the delivery target in their JSON. Large maps also
+store the longer time limit, giving ships time for the extra trips.
+These rules apply when the map is saved and loaded through `--map`.
+Maps without a rule field use the corresponding simulation config setting.
+
+Each unseeded launch picks a fresh seed and prints it to the terminal.
+Pressing `R` restarts the match on the current arena. Launch again for a
+new layout, or reuse the seed and size to replay that arena.
+
+To save a map, use the Python generator with `--size` and then load it:
+
+```sh
+python3 -B scripts/generate_team_arena.py --size medium --seed 1 --obstacles 4 --resources 5 \
+  --resource-layout central --output out/generated-arena.json
+./build/AstroPartyAI --mode team --map out/generated-arena.json
+```
+
+The generator uses Python's standard library. Use `--obstacles` to
+override the preset with an even count from 2 to 12. Resource counts can
+be 3 through 9. `central`
+puts resource pairs nearer the midline, and `spread` moves them toward
+the two home regions. Features are paired under 180° rotation, with an
+additional center resource for odd counts. The seed and parameters
+reproduce the layout. Single-map generation rejects placement or geometry
+failures. The batch study also checks delivery behavior.
+
+```sh
+python3 -B tests/test_generate_team_arena.py
+python3 -B scripts/study_team_arenas.py --output out/procedural-arenas
+python3 -B scripts/study_team_arenas.py --output out/procedural-arenas --plots-only
+```
+
+The study evaluates 50 primary seeds per family (4 or 8 obstacles,
+central or spread resources). A candidate passes geometry if spawns, home
+centers, and resources are clear and connected on a 20-unit navigation
+grid with ship clearance. It passes the AI check if both headless
+matches finish and each arena side scores across the two strategy
+assignments. The first 30 distinct passing layouts per family make up the
+distribution sample. `study.json` records every attempt, both results
+when simulated, and the accepted sample paths. The three SVG histograms
+show coverage, resource location, and delivery detours. The method of
+comparing distributions across settings follows
+[Smith and Whitehead's expressive-range analysis](https://www.pcgworkshop.com/archive/smith2010analyzing.pdf).
+
+To capture the first frame after a delivery while a team match is still
+running, use the graphical executable with `--capture-frame`. It writes a
+BMP and prints the tick and score before exiting.
+
+```sh
+./build/AstroPartyAI --mode team \
+  --map out/procedural-arenas/maps/arena-4-5-central-1.json \
+  --capture-frame out/procedural-arenas/arena-4-5-central-1.bmp
+```
 
 **Controllers are the extension point for AI.** Any class implementing
 `input::IShipController` — human, scripted, or a future learning agent —

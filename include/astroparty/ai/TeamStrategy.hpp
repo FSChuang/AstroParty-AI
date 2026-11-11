@@ -8,7 +8,7 @@
 
 namespace astroparty::ai {
 
-enum class ShipRole { Collector, Defender, Interceptor, Escort };
+enum class ShipRole { Collector, Defender, Interceptor, Escort, SelfDefense };
 
 // What one ship should be trying to do this tick, as decided by a team
 // strategy and handed to TeamShipController, which turns it into an actual
@@ -20,10 +20,10 @@ enum class ShipRole { Collector, Defender, Interceptor, Escort };
 struct ShipGoal {
     ShipRole role = ShipRole::Defender;
     core::Vector2 targetPosition{};
-    // Set for Interceptor (the enemy carrier to stop) and Escort (the
-    // friendly carrier to protect); unset for Collector and Defender, whose
-    // target is a place, not a ship.
-    std::optional<int> targetShipId;
+    // Optional enemy to pursue for a combat role or avoid for a Collector.
+    std::optional<int> targetShipId{};
+    // Ally the escort should stay close enough to protect.
+    std::optional<int> protectedShipId{};
 };
 
 // Decides, each tick, what every ship on one team should be trying to do.

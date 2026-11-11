@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "astroparty/ai/TeamStrategy.hpp"
@@ -26,11 +27,14 @@ public:
     TeamShipController(std::shared_ptr<ITeamStrategy> strategy, int teamId, std::vector<int> teamShipIds) noexcept;
 
     [[nodiscard]] core::ShipAction decide(const core::World& world, int controlledShipId) override;
+    [[nodiscard]] ShipRole lastRole() const noexcept { return lastRole_; }
 
 private:
     std::shared_ptr<ITeamStrategy> strategy_;
     int teamId_;
     std::vector<int> teamShipIds_;
+    ShipRole lastRole_ = ShipRole::Defender;
+    std::optional<int> lastShotTick_;
 };
 
 }  // namespace astroparty::ai

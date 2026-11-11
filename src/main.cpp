@@ -13,11 +13,14 @@ namespace {
 // match instead of the default two-player Classic Deathmatch.
 astroparty::ApplicationOptions parseCommandLine(int argc, char** argv) {
     astroparty::ApplicationOptions options;
+    bool modeSpecified = false;
+    bool mapSpecified = false;
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
         const bool hasNext = i + 1 < argc;
 
         if (argument == "--mode" && hasNext) {
+            modeSpecified = true;
             const std::string mode = argv[++i];
             if (mode == "classic") {
                 options.mode = astroparty::core::GameMode::ClassicDeathmatch;
@@ -30,13 +33,39 @@ astroparty::ApplicationOptions parseCommandLine(int argc, char** argv) {
             options.configPath = argv[++i];
         } else if (argument == "--map" && hasNext) {
             options.mapPath = argv[++i];
+            mapSpecified = true;
+        } else if (argument == "--generate-map") {
+            options.generateMap = true;
+        } else if (argument == "--map-size" && hasNext) {
+            options.mapSize = argv[++i];
+            if (*options.mapSize != "small" && *options.mapSize != "medium" && *options.mapSize != "large") {
+                throw std::invalid_argument("--map-size must be small, medium, or large");
+            }
+        } else if (argument == "--map-seed" && hasNext) {
+            options.mapSeed = argv[++i];
         } else if (argument == "--team0-strategy" && hasNext) {
             options.team0Strategy = argv[++i];
         } else if (argument == "--team1-strategy" && hasNext) {
             options.team1Strategy = argv[++i];
+        } else if (argument == "--capture-frame" && hasNext) {
+            options.captureFrame = argv[++i];
         } else {
             throw std::invalid_argument("Unrecognized or incomplete argument: " + argument);
         }
+    }
+    if (options.generateMap) {
+        if (mapSpecified) {
+            throw std::invalid_argument("--generate-map and --map cannot be used together");
+        }
+        if (modeSpecified && options.mode != astroparty::core::GameMode::TeamResourceBattle) {
+            throw std::invalid_argument("--generate-map requires team mode");
+        }
+        options.mode = astroparty::core::GameMode::TeamResourceBattle;
+    } else if (options.mapSeed || options.mapSize) {
+        throw std::invalid_argument("--map-seed and --map-size require --generate-map");
+    }
+    if (options.captureFrame && options.mode != astroparty::core::GameMode::TeamResourceBattle) {
+        throw std::invalid_argument("--capture-frame requires --mode team");
     }
     return options;
 }

@@ -1,5 +1,8 @@
 #include "astroparty/entities/Ship.hpp"
 
+#include <algorithm>
+#include <cmath>
+
 #include "astroparty/physics/Arena.hpp"
 #include "astroparty/physics/Obstacle.hpp"
 
@@ -17,16 +20,20 @@ std::optional<BulletSpawnRequest> Ship::update(const core::ShipAction& action, f
         return std::nullopt;
     }
 
-    if (action.turnRight) {
-        headingDegrees_ += config.shipTurnRateDegreesPerSecond * deltaSeconds;
+    if (action.turnRight != action.turnLeft) {
+        const float direction = action.turnRight ? 1.0f : -1.0f;
+        headingDegrees_ = std::remainder(
+            headingDegrees_ + direction * config.shipTurnRateDegreesPerSecond * deltaSeconds, 360.0f);
     }
 
-    // The ship accelerates continuously along its current heading -- this is
-    // the defining Astro Party mechanic: there is no "stop" control, only
-    // steering. See docs/UPSTREAM_AUDIT.md,
-    // section 4.
     const Vector2 forward = Vector2::fromAngleDegrees(headingDegrees_);
-    velocity_ += forward * (config.shipAccelerationUnitsPerSecondSquared * deltaSeconds);
+    const float throttle = std::isfinite(action.throttle) ? std::clamp(action.throttle, -1.0f, 1.0f) : 0.0f;
+    const float velocityChange = throttle * config.shipAccelerationUnitsPerSecondSquared * deltaSeconds;
+    if (velocityChange > 0.0f) {
+        velocity_ += forward * velocityChange;
+    } else if (velocityChange < 0.0f) {
+        velocity_ = velocity_.clampedToLength(std::max(0.0f, velocity_.length() + velocityChange));
+    }
     velocity_ = velocity_.clampedToLength(config.shipMaxSpeedUnitsPerSecond);
 
     position_ += velocity_ * deltaSeconds;

@@ -1,5 +1,7 @@
 #include "astroparty/core/World.hpp"
 
+#include <cmath>
+#include <limits>
 #include <stdexcept>
 #include <utility>
 
@@ -13,6 +15,14 @@ World::World() : World(SimulationConfig{}, MapDefinition::defaultTwoShipMap()) {
 World::World(SimulationConfig config, MapDefinition map) : config_(config), map_(std::move(map)) {
     config_.arenaSize = map_.arenaSize;  // The map is the single source of truth for arena bounds.
     if (config_.mode == GameMode::TeamResourceBattle) {
+        config_.winningScore = map_.winningScore.value_or(config_.winningScore);
+        if (map_.matchDurationSeconds) {
+            const double ticks = std::ceil(*map_.matchDurationSeconds * static_cast<double>(config_.tickRateHz));
+            if (!(ticks > 0.0 && ticks <= std::numeric_limits<int>::max())) {
+                throw std::invalid_argument("Map matchDurationSeconds is outside the simulation's tick range");
+            }
+            config_.maxMatchTicks = static_cast<int>(ticks);
+        }
         validateTeamResourceBattleRequirements();
     }
     spawnInitialShips();
@@ -82,7 +92,7 @@ void World::step(const std::vector<ShipAction>& actions, float deltaSeconds) {
     }
 
     dropResourcesCarriedByEliminatedShips();
-    updateResourcePickupAndDelivery();
+    updateResourcePickupAndDelivery(actions);
     updateRespawns();
     ++elapsedTicks_;
     teamMatchState_.evaluate(teamScores_, config_.winningScore, elapsedTicks_, config_.maxMatchTicks);
@@ -156,13 +166,15 @@ void World::dropResourcesCarriedByEliminatedShips() {
     }
 }
 
-void World::updateResourcePickupAndDelivery() {
-    // Pickup: an alive ship not already carrying anything collects any
+void World::updateResourcePickupAndDelivery(const std::vector<ShipAction>& actions) {
+    // Pickup: an eligible, alive ship not already carrying anything collects any
     // available (AtSpawn) resource within pickup range. A ship carries at
     // most one resource at a time -- the simplest rule that still makes
     // "defend the carrier" and "intercept the carrier" meaningful roles.
-    for (entities::Ship& ship : ships_) {
-        if (!ship.isAlive() || isCarryingAnyResource(ship.id())) {
+    for (std::size_t i = 0; i < ships_.size(); ++i) {
+        const auto& ship = ships_[i];
+        const bool allowsPickup = i >= actions.size() || actions[i].allowResourcePickup;
+        if (!allowsPickup || !ship.isAlive() || isCarryingAnyResource(ship.id())) {
             continue;
         }
         for (entities::Resource& resource : resources_) {

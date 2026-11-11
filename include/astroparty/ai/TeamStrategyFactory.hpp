@@ -7,12 +7,8 @@
 
 namespace astroparty::ai {
 
-// Builds a team strategy by name: "strategic" for UtilityTeamStrategy (this
-// project's real strategic AI) or "baseline" for BaselineTeamStrategy (the
-// simpler fixed-role opponent). Shared by the headless and graphical entry
-// points so both select strategies the exact same way -- see
-// docs/ARCHITECTURE.md's "Baseline opponent" section. Throws
-// std::invalid_argument for any other name.
+// Selects the offensive "strategic" policy, defensive "red" policy, or
+// fixed-role "baseline". Both game entry points use the same names.
 [[nodiscard]] std::shared_ptr<ITeamStrategy> makeTeamStrategyByName(const std::string& name);
 
 }  // namespace astroparty::ai

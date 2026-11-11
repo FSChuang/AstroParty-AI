@@ -6,8 +6,7 @@
 
 namespace astroparty::input {
 
-// Reads the live SDL keyboard state and maps two fixed scancodes -- one for
-// turning right, one for shooting -- to a ShipAction.
+// Maps a local player's turning, throttle, and shooting keys to a ShipAction.
 //
 // Construct one instance per locally controlled ship so two players can use
 // disjoint key clusters on the same keyboard. Unlike upstream, which read
@@ -17,14 +16,18 @@ namespace astroparty::input {
 // support directly.
 class KeyboardShipController final : public IShipController {
 public:
-    KeyboardShipController(SDL_Scancode turnRightKey, SDL_Scancode shootKey) noexcept;
+    KeyboardShipController(SDL_Scancode turnLeftKey, SDL_Scancode turnRightKey,
+                           SDL_Scancode thrustKey, SDL_Scancode brakeKey, SDL_Scancode shootKey) noexcept;
 
     // Ignores `world` and `controlledShipId`: this controller always reads
     // live physical keyboard state, which has no notion of "which ship."
     [[nodiscard]] core::ShipAction decide(const core::World& world, int controlledShipId) override;
 
 private:
+    SDL_Scancode turnLeftKey_;
     SDL_Scancode turnRightKey_;
+    SDL_Scancode thrustKey_;
+    SDL_Scancode brakeKey_;
     SDL_Scancode shootKey_;
 };
 

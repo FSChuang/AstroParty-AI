@@ -123,7 +123,7 @@ private:
     // incorrectly come back to life instead of staying dead for the rest of
     // the match.
     void dropResourcesCarriedByEliminatedShips();
-    void updateResourcePickupAndDelivery();
+    void updateResourcePickupAndDelivery(const std::vector<ShipAction>& actions);
     void updateRespawns();
     [[nodiscard]] bool isCarryingAnyResource(int shipId) const noexcept;
 };

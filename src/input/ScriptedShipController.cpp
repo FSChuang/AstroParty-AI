@@ -7,6 +7,7 @@ ScriptedShipController::ScriptedShipController(bool turnEveryOtherTick, int shoo
 
 core::ShipAction ScriptedShipController::decide(const core::World& /*world*/, int /*controlledShipId*/) {
     core::ShipAction action;
+    action.throttle = 1.0f;
     if (turnEveryOtherTick_) {
         action.turnRight = (tickCounter_ % 2) == 0;
     }

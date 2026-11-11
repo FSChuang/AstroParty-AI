@@ -1,5 +1,8 @@
 #pragma once
 
+#include <span>
+
+#include "astroparty/ai/TeamStrategy.hpp"
 #include "astroparty/core/MapDefinition.hpp"
 #include "astroparty/core/World.hpp"
 #include "astroparty/entities/Bullet.hpp"
@@ -26,7 +29,8 @@ class GameRenderer {
 public:
     explicit GameRenderer(SdlRenderer& renderer) noexcept;
 
-    void renderFrame(const core::World& world);
+    void renderFrame(const core::World& world, const char* captureBmpPath = nullptr,
+                     std::span<const ai::ShipRole> shipRoles = {});
 
 private:
     SdlRenderer& renderer_;
