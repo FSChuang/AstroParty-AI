@@ -7,6 +7,7 @@
 
 using astroparty::core::HomeRegion;
 using astroparty::core::MapDefinition;
+using astroparty::core::ObstacleDefinition;
 using astroparty::core::ShipSpawnPoint;
 using astroparty::core::Vector2;
 
@@ -228,5 +229,104 @@ TEST_SUITE("MapDefinition") {
 
         CHECK(map.shipSpawns[0].teamId == -1);
         CHECK(map.shipSpawns[1].teamId == -1);
+    }
+}
+
+TEST_SUITE("MapDefinition serialization") {
+    TEST_CASE("toJsonString then loadFromFile round-trips a team map exactly") {
+        MapDefinition original;
+        original.name = "roundtrip_test";
+        original.arenaSize = Vector2{1000.0f, 800.0f};
+        original.shipSpawns = {
+            ShipSpawnPoint{Vector2{50.0f, 50.0f}, 10.0f, 0},
+            ShipSpawnPoint{Vector2{50.0f, 150.0f}, 20.0f, 0},
+            ShipSpawnPoint{Vector2{50.0f, 250.0f}, 30.0f, 0},
+            ShipSpawnPoint{Vector2{950.0f, 50.0f}, 190.0f, 1},
+            ShipSpawnPoint{Vector2{950.0f, 150.0f}, 200.0f, 1},
+            ShipSpawnPoint{Vector2{950.0f, 250.0f}, 210.0f, 1},
+        };
+        original.obstacles = {ObstacleDefinition{Vector2{400.0f, 400.0f}, 35.0f},
+                               ObstacleDefinition{Vector2{600.0f, 400.0f}, 42.0f}};
+        original.homeRegions = {HomeRegion{0, Vector2{20.0f, 150.0f}, 60.0f}, HomeRegion{1, Vector2{980.0f, 150.0f}, 60.0f}};
+        original.resourceSpawnPoints = {Vector2{500.0f, 400.0f}, Vector2{500.0f, 200.0f}};
+
+        const auto path = std::filesystem::temp_directory_path() / "astroparty_roundtrip_test_map.json";
+        original.saveToFile(path);
+        const MapDefinition reloaded = MapDefinition::loadFromFile(path);
+
+        CHECK(reloaded.name == original.name);
+        CHECK(reloaded.arenaSize == original.arenaSize);
+        REQUIRE(reloaded.shipSpawns.size() == original.shipSpawns.size());
+        for (std::size_t i = 0; i < original.shipSpawns.size(); ++i) {
+            CHECK(reloaded.shipSpawns[i].position == original.shipSpawns[i].position);
+            CHECK(reloaded.shipSpawns[i].headingDegrees == doctest::Approx(original.shipSpawns[i].headingDegrees));
+            CHECK(reloaded.shipSpawns[i].teamId == original.shipSpawns[i].teamId);
+        }
+        REQUIRE(reloaded.obstacles.size() == original.obstacles.size());
+        for (std::size_t i = 0; i < original.obstacles.size(); ++i) {
+            CHECK(reloaded.obstacles[i].position == original.obstacles[i].position);
+            CHECK(reloaded.obstacles[i].radius == doctest::Approx(original.obstacles[i].radius));
+        }
+        REQUIRE(reloaded.homeRegions.size() == original.homeRegions.size());
+        for (std::size_t i = 0; i < original.homeRegions.size(); ++i) {
+            CHECK(reloaded.homeRegions[i].teamId == original.homeRegions[i].teamId);
+            CHECK(reloaded.homeRegions[i].position == original.homeRegions[i].position);
+            CHECK(reloaded.homeRegions[i].radius == doctest::Approx(original.homeRegions[i].radius));
+        }
+        CHECK(reloaded.resourceSpawnPoints == original.resourceSpawnPoints);
+        CHECK_NOTHROW(reloaded.validate());
+    }
+
+    TEST_CASE("a round-tripped map still satisfies Team Resource Battle structure") {
+        MapDefinition map;
+        map.arenaSize = Vector2{1000.0f, 800.0f};
+        map.shipSpawns = {
+            ShipSpawnPoint{{50.0f, 50.0f}, 0.0f, 0},   ShipSpawnPoint{{50.0f, 150.0f}, 0.0f, 0},
+            ShipSpawnPoint{{50.0f, 250.0f}, 0.0f, 0},  ShipSpawnPoint{{950.0f, 50.0f}, 0.0f, 1},
+            ShipSpawnPoint{{950.0f, 150.0f}, 0.0f, 1}, ShipSpawnPoint{{950.0f, 250.0f}, 0.0f, 1},
+        };
+        map.homeRegions = {HomeRegion{0, {20.0f, 150.0f}, 60.0f}, HomeRegion{1, {980.0f, 150.0f}, 60.0f}};
+        map.resourceSpawnPoints = {{500.0f, 400.0f}};
+
+        CHECK_NOTHROW(astroparty::core::validateTeamResourceBattleStructure(map));
+    }
+}
+
+TEST_SUITE("validateTeamResourceBattleStructure") {
+    TEST_CASE("throws when a team does not have exactly three ships") {
+        MapDefinition map;
+        map.arenaSize = Vector2{1000.0f, 800.0f};
+        map.shipSpawns = {ShipSpawnPoint{{50.0f, 50.0f}, 0.0f, 0}, ShipSpawnPoint{{950.0f, 50.0f}, 0.0f, 1}};
+        map.homeRegions = {HomeRegion{0, {20.0f, 150.0f}, 60.0f}, HomeRegion{1, {980.0f, 150.0f}, 60.0f}};
+        map.resourceSpawnPoints = {{500.0f, 400.0f}};
+
+        CHECK_THROWS_AS(astroparty::core::validateTeamResourceBattleStructure(map), std::invalid_argument);
+    }
+
+    TEST_CASE("throws when a home region is missing for a team") {
+        MapDefinition map;
+        map.arenaSize = Vector2{1000.0f, 800.0f};
+        map.shipSpawns = {
+            ShipSpawnPoint{{50.0f, 50.0f}, 0.0f, 0},   ShipSpawnPoint{{50.0f, 150.0f}, 0.0f, 0},
+            ShipSpawnPoint{{50.0f, 250.0f}, 0.0f, 0},  ShipSpawnPoint{{950.0f, 50.0f}, 0.0f, 1},
+            ShipSpawnPoint{{950.0f, 150.0f}, 0.0f, 1}, ShipSpawnPoint{{950.0f, 250.0f}, 0.0f, 1},
+        };
+        map.homeRegions = {HomeRegion{0, {20.0f, 150.0f}, 60.0f}};
+        map.resourceSpawnPoints = {{500.0f, 400.0f}};
+
+        CHECK_THROWS_AS(astroparty::core::validateTeamResourceBattleStructure(map), std::invalid_argument);
+    }
+
+    TEST_CASE("throws when there are no resource spawn points") {
+        MapDefinition map;
+        map.arenaSize = Vector2{1000.0f, 800.0f};
+        map.shipSpawns = {
+            ShipSpawnPoint{{50.0f, 50.0f}, 0.0f, 0},   ShipSpawnPoint{{50.0f, 150.0f}, 0.0f, 0},
+            ShipSpawnPoint{{50.0f, 250.0f}, 0.0f, 0},  ShipSpawnPoint{{950.0f, 50.0f}, 0.0f, 1},
+            ShipSpawnPoint{{950.0f, 150.0f}, 0.0f, 1}, ShipSpawnPoint{{950.0f, 250.0f}, 0.0f, 1},
+        };
+        map.homeRegions = {HomeRegion{0, {20.0f, 150.0f}, 60.0f}, HomeRegion{1, {980.0f, 150.0f}, 60.0f}};
+
+        CHECK_THROWS_AS(astroparty::core::validateTeamResourceBattleStructure(map), std::invalid_argument);
     }
 }

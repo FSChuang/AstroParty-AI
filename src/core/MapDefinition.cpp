@@ -1,7 +1,9 @@
 #include "astroparty/core/MapDefinition.hpp"
 
+#include <array>
 #include <fstream>
 #include <stdexcept>
+#include <utility>
 
 #include <nlohmann/json.hpp>
 
@@ -134,6 +136,81 @@ MapDefinition MapDefinition::loadFromFile(const std::filesystem::path& path) {
 
     map.validate();
     return map;
+}
+
+namespace {
+
+nlohmann::json jsonFromVector(Vector2 vector) { return nlohmann::json{{"x", vector.x}, {"y", vector.y}}; }
+
+}  // namespace
+
+std::string MapDefinition::toJsonString() const {
+    nlohmann::json json;
+    json["name"] = name;
+    json["arenaSize"] = jsonFromVector(arenaSize);
+
+    json["shipSpawns"] = nlohmann::json::array();
+    for (const ShipSpawnPoint& spawn : shipSpawns) {
+        nlohmann::json spawnJson;
+        spawnJson["position"] = jsonFromVector(spawn.position);
+        spawnJson["headingDegrees"] = spawn.headingDegrees;
+        spawnJson["teamId"] = spawn.teamId;
+        json["shipSpawns"].push_back(std::move(spawnJson));
+    }
+
+    json["obstacles"] = nlohmann::json::array();
+    for (const ObstacleDefinition& obstacle : obstacles) {
+        json["obstacles"].push_back({{"position", jsonFromVector(obstacle.position)}, {"radius", obstacle.radius}});
+    }
+
+    json["homeRegions"] = nlohmann::json::array();
+    for (const HomeRegion& home : homeRegions) {
+        json["homeRegions"].push_back(
+            {{"teamId", home.teamId}, {"position", jsonFromVector(home.position)}, {"radius", home.radius}});
+    }
+
+    json["resourceSpawnPoints"] = nlohmann::json::array();
+    for (const Vector2& point : resourceSpawnPoints) {
+        json["resourceSpawnPoints"].push_back(jsonFromVector(point));
+    }
+
+    return json.dump(2);
+}
+
+void MapDefinition::saveToFile(const std::filesystem::path& path) const {
+    std::ofstream file(path);
+    if (!file.is_open()) {
+        throw std::runtime_error("Could not open map file for writing: " + path.string());
+    }
+    file << toJsonString() << '\n';
+}
+
+void validateTeamResourceBattleStructure(const MapDefinition& map) {
+    std::array<int, 2> shipsPerTeam{0, 0};
+    for (const ShipSpawnPoint& spawn : map.shipSpawns) {
+        if (spawn.teamId != 0 && spawn.teamId != 1) {
+            throw std::invalid_argument(
+                "Team Resource Battle requires every ship spawn to belong to team 0 or team 1");
+        }
+        ++shipsPerTeam[static_cast<std::size_t>(spawn.teamId)];
+    }
+    if (shipsPerTeam[0] != 3 || shipsPerTeam[1] != 3) {
+        throw std::invalid_argument("Team Resource Battle requires exactly three ships per team (3v3)");
+    }
+
+    bool team0HasHome = false;
+    bool team1HasHome = false;
+    for (const HomeRegion& home : map.homeRegions) {
+        if (home.teamId == 0) team0HasHome = true;
+        if (home.teamId == 1) team1HasHome = true;
+    }
+    if (!team0HasHome || !team1HasHome) {
+        throw std::invalid_argument("Team Resource Battle requires a home region for both team 0 and team 1");
+    }
+
+    if (map.resourceSpawnPoints.empty()) {
+        throw std::invalid_argument("Team Resource Battle requires at least one resource spawn point");
+    }
 }
 
 MapDefinition MapDefinition::defaultTwoShipMap() {

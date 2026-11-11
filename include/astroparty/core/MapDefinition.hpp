@@ -65,6 +65,26 @@ struct MapDefinition {
     // existed. World's default constructor uses this, so existing behavior
     // and tests are unaffected by map loading's introduction.
     [[nodiscard]] static MapDefinition defaultTwoShipMap();
+
+    // Serializes this map back to the same JSON shape loadFromFile() reads,
+    // so a map built in memory (by hand, or by the Milestone 4 procedural
+    // generator in procgen/) can be written to disk and later reloaded
+    // identically by either the graphical or headless executable.
+    [[nodiscard]] std::string toJsonString() const;
+
+    // Convenience wrapper around toJsonString() that writes directly to a
+    // file, throwing std::runtime_error if the file cannot be opened for
+    // writing.
+    void saveToFile(const std::filesystem::path& path) const;
 };
+
+// Throws std::invalid_argument, naming the problem, if `map` is not
+// structurally shaped for Team Resource Battle: every ship spawn must
+// belong to team 0 or team 1 with exactly three per team, both teams need a
+// home region, and at least one resource spawn point must exist. Factored
+// out of World's constructor so both World and the Milestone 4 procedural
+// generator's validity checker enforce this one rule from one place rather
+// than two copies silently drifting apart.
+void validateTeamResourceBattleStructure(const MapDefinition& map);
 
 }  // namespace astroparty::core
