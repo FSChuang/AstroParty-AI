@@ -83,6 +83,8 @@ add_library(astroparty_sim STATIC
     src/ai/TeamStrategyFactory.cpp
     src/ai/TeamControllerFactory.cpp
     src/ai/TeamShipController.cpp
+    src/procgen/MapGeneratorConfig.cpp
+    src/procgen/OccupancyGrid.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
