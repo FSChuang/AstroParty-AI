@@ -88,6 +88,7 @@ add_library(astroparty_sim STATIC
     src/procgen/MapGenerator.cpp
     src/procgen/MapValidity.cpp
     src/procgen/MapRepair.cpp
+    src/procgen/GenerationPipeline.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
