@@ -26,9 +26,9 @@ METRICS = [
 ]
 
 
-def run_matches(executable, map_path, max_ticks):
+def run_matches(executable, map_path, max_ticks, strategies):
     matches = []
-    for team0, team1 in (("strategic", "baseline"), ("baseline", "strategic")):
+    for team0, team1 in (strategies, strategies[::-1]):
         command = [str(executable), "--config", str(TEAM_CONFIG), "--map", str(map_path),
                    "--max-ticks", str(max_ticks), "--team0-strategy", team0, "--team1-strategy", team1]
         try:
@@ -49,7 +49,7 @@ def run_matches(executable, map_path, max_ticks):
     return matches, None
 
 
-def evaluate(seed, obstacles, layout, ship_radius, max_ticks, executable, temp):
+def evaluate(seed, obstacles, layout, ship_radius, max_ticks, executable, temp, strategies):
     row = {"seed": seed, "obstacles": obstacles, "resources": RESOURCE_COUNT,
            "resource_layout": layout, "geometry_valid": False, "playable": False}
     try:
@@ -63,7 +63,7 @@ def evaluate(seed, obstacles, layout, ship_radius, max_ticks, executable, temp):
     row["geometry_valid"] = True
     map_path = temp / (arena["name"] + ".json")
     write_arena(arena, map_path)
-    row["matches"], rejection = run_matches(executable, map_path, max_ticks)
+    row["matches"], rejection = run_matches(executable, map_path, max_ticks, strategies)
     row.update(playable=rejection is None, rejection=rejection)
     return row, arena
 
@@ -85,7 +85,7 @@ def layout_key(arena):
     return tuple(rocks), tuple(cores)
 
 
-def run_study(output, executable, jobs):
+def run_study(output, executable, jobs, strategies):
     if not executable.is_file():
         raise ValueError(f"build the headless executable first: {executable}")
     config = json.loads(TEAM_CONFIG.read_text())
@@ -95,7 +95,8 @@ def run_study(output, executable, jobs):
         for obstacles, layout in FAMILIES:
             analyze = partial(evaluate, obstacles=obstacles, layout=layout,
                               ship_radius=config["shipCollisionRadius"],
-                              max_ticks=config["maxMatchTicks"], executable=executable, temp=Path(temp))
+                              max_ticks=config["maxMatchTicks"], executable=executable,
+                              temp=Path(temp), strategies=strategies)
             rows = []
             seen = set()
 
@@ -184,6 +185,11 @@ def main():
     parser.add_argument("--output", type=Path, default=Path("out/procedural-arenas"))
     parser.add_argument("--executable", type=Path, default=Path("build/AstroPartyAI-headless"))
     parser.add_argument("--jobs", type=int, default=4)
+    strategy_choices = ("strategic", "red", "baseline")
+    parser.add_argument("--team0-strategy", choices=strategy_choices, default="strategic",
+                        help="first match's team 0 policy (default: %(default)s)")
+    parser.add_argument("--team1-strategy", choices=strategy_choices, default="red",
+                        help="first match's team 1 policy (default: %(default)s)")
     parser.add_argument("--plots-only", action="store_true", help="replot the study.json in the output directory")
     args = parser.parse_args()
     if args.jobs < 1:
@@ -192,7 +198,8 @@ def main():
     try:
         if args.plots_only:
             write_plots(json.loads((args.output / "study.json").read_text()), args.output)
-        elif not run_study(args.output, args.executable.resolve(), args.jobs):
+        elif not run_study(args.output, args.executable.resolve(), args.jobs,
+                           (args.team0_strategy, args.team1_strategy)):
             parser.exit(1, "Study shortfall: at least one family did not reach 30 playable maps. See study.json.\n")
     except (OSError, ValueError) as exc:
         parser.error(str(exc))

@@ -33,11 +33,12 @@ automated AI-vs-AI evaluation possible in the first place.
 - Circular arena **obstacles**: ships and bullets collide with them, spawn
   placement rejects overlapping positions, and a fixed 6-ship arena
   (`configs/maps/team_arena.json`) ships with the project
-- A rule-based **3v3 AI module** (`ai/`): shared steering/movement primitives,
-  a utility-based strategic team AI that dynamically assigns Collector /
-  Defender / Interceptor / Escort roles every tick from publicly observable
-  match state, and a simpler fixed-role baseline AI for fair comparison —
-  no neural networks, no learned policies, fully deterministic
+- A rule-based **3v3 AI module** (`ai/`) with offensive blue and defensive red
+  policies. Both use shared steering and assign Collector, Defender,
+  Interceptor, Escort, and Self-Defense roles from the current match state.
+  A fixed-role baseline is available for comparison.
+- A **seeded arena generator** with three size presets, configurable obstacle
+  counts and resource placement, and a batch study for geometry and AI playability.
 - A simulation library (`astroparty_sim`) with **no SDL dependency**,
   independently unit-tested
 - `IShipController`: one shared action interface for human keyboard input,
@@ -178,13 +179,13 @@ Classic Deathmatch:
 { "outcome": "Timeout", "winningShipId": null, "ticksElapsed": 3600 }
 ```
 
-Team Resource Battle (strategic AI vs. baseline AI, 3v3):
+Team Resource Battle with the default blue and red policies:
 
 ```sh
 ./build/AstroPartyAI-headless \
   --config configs/team_resource_battle.json \
   --map configs/maps/team_arena.json \
-  --team0-strategy strategic --team1-strategy baseline
+  --team0-strategy strategic --team1-strategy red
 ```
 
 ```json
@@ -192,9 +193,9 @@ Team Resource Battle (strategic AI vs. baseline AI, 3v3):
   "outcome": "TeamWon",
   "winningTeamId": 0,
   "ticksElapsed": 3463,
-  "teamScores": [5, 0],
-  "resourcesCollected": [6, 2],
-  "shipsDestroyed": [0, 33]
+  "teamScores": [5, 4],
+  "resourcesCollected": [6, 5],
+  "shipsDestroyed": [1, 8]
 }
 ```
 
@@ -216,7 +217,7 @@ strategy pairing N times and reports win rates and average scores:
 
 ```sh
 python3 scripts/run_team_experiments.py --runs 20 \
-  --team0-strategy strategic --team1-strategy baseline --csv results.csv
+  --team0-strategy strategic --team1-strategy red --csv results.csv
 ```
 
 Since the simulation has no randomness, repeated runs of an *identical*
@@ -271,15 +272,17 @@ python3 -B scripts/study_team_arenas.py --output out/procedural-arenas
 python3 -B scripts/study_team_arenas.py --output out/procedural-arenas --plots-only
 ```
 
-The study evaluates 50 primary seeds per family (4 or 8 obstacles,
-central or spread resources). A candidate passes geometry if spawns, home
-centers, and resources are clear and connected on a 20-unit navigation
-grid with ship clearance. It passes the AI check if both headless
-matches finish and each arena side scores across the two strategy
-assignments. The first 30 distinct passing layouts per family make up the
-distribution sample. `study.json` records every attempt, both results
-when simulated, and the accepted sample paths. The three SVG histograms
-show coverage, resource location, and delivery detours. The method of
+The study evaluates 50 primary seeds per family on medium maps with five
+resources (4 or 8 obstacles, with central or spread placement). A candidate
+passes geometry if spawns, home centers, and resources are clear and connected
+on a 20-unit navigation grid with ship clearance. The AI check runs two headless
+matches per candidate, swapping the `strategic` and `red` policies for the
+second match. Both matches must finish, and each arena side must score in at
+least one of the two matches. Use `--team1-strategy baseline` to repeat the
+earlier baseline comparison. The first 30 distinct passing layouts per family
+make up the distribution sample. `study.json` records every attempt, the
+strategy assignments and match results, and the accepted sample paths. The
+three SVG histograms show coverage, resource location, and delivery detours. The method of
 comparing distributions across settings follows
 [Smith and Whitehead's expressive-range analysis](https://www.pcgworkshop.com/archive/smith2010analyzing.pdf).
 
@@ -311,7 +314,7 @@ to mutate it directly).
    ├─ entities/  Ship, Bullet, Resource
    ├─ physics/   Arena bounds, collision, obstacles
    ├─ ai/        Steering, unit behaviors,
-   │             BaselineTeamStrategy, UtilityTeamStrategy,
+   │             BaselineTeamStrategy, UtilityTeamStrategy, RedTeamStrategy,
    │             TeamShipController
    └─ headless/  MatchRunner/MatchResult,
                  TeamMatchRunner/TeamMatchResult
@@ -345,7 +348,8 @@ counts and sanitizer usage.
 - [x] **Milestone 1** — Minimal playable two-player graphical game, simulation/rendering separation
 - [x] **Milestone 2** — Shared controller interface, headless execution, deterministic simulation, JSON configuration and map loading
 - [x] **Milestone 3** — Functional obstacles, a Team Resource Battle mode (3v3), rule-based unit AI, and a strategic team-AI layer evaluated against a baseline
-- [ ] **Milestone 4** — Procedural arena generation; reinforcement-learning-based agents
+- [x] **Milestone 4** — Seeded procedural arenas, geometry and AI validation, and analysis of generated maps
+- [ ] Reinforcement learning for agents
 
 ## License and acknowledgments
 
