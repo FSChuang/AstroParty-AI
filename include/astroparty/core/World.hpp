@@ -109,7 +109,6 @@ private:
     std::vector<int> respawnTicksRemaining_;  // One per ship; 0 = not currently awaiting respawn.
     int elapsedTicks_ = 0;
 
-    void validateTeamResourceBattleRequirements() const;
     void spawnInitialShips();
     void spawnInitialResources();
     void updateShips(const std::vector<ShipAction>& actions, float deltaSeconds);

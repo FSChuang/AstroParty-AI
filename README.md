@@ -34,6 +34,13 @@ automated AI-vs-AI evaluation possible in the first place.
 - Circular arena **obstacles**: ships and bullets collide with them, spawn
   placement rejects overlapping positions, and a fixed 6-ship arena
   (`configs/maps/team_arena.json`) ships with the project
+- A **procedural map generator** (`procgen/`, `AstroPartyAI-mapgen`):
+  parameterized, seeded, reproducible generation of Team Resource Battle
+  maps in three families (open / clustered / chokepoint — see
+  `configs/procgen/`), an automatic structural + geometric validity
+  checker with bounded obstacle-removal repair, and a stdlib+matplotlib
+  analysis script (`scripts/analyze_generated_maps.py`) — see
+  [`docs/PROCEDURAL_GENERATION.md`](docs/PROCEDURAL_GENERATION.md)
 - A rule-based **3v3 AI module** (`ai/`): shared steering/movement primitives,
   a utility-based strategic team AI that dynamically assigns Collector /
   Defender / Interceptor / Escort roles every tick from publicly observable
@@ -215,6 +222,35 @@ kind of controller. See `docs/ARCHITECTURE.md` for the interface and its
 guarantees (a controller can observe the full match state but has no path
 to mutate it directly).
 
+## Procedural map generation
+
+`AstroPartyAI-mapgen` generates a batch of accepted Team Resource Battle
+maps, directly loadable by the graphical client, the headless runner, and
+`World` itself:
+
+```sh
+./build/AstroPartyAI-mapgen --config configs/procgen/chokepoint.json \
+  --seed 0 --count 20 --output-dir /tmp/my_maps
+```
+
+| Flag | Default | Meaning |
+|---|---|---|
+| `--config <path>` | required | A `MapGeneratorConfig` JSON file (see `configs/procgen/`) |
+| `--seed <N>` | required | First seed; subsequent attempts use `seed+1`, `seed+2`, ... |
+| `--count <N>` | required | How many accepted maps to produce |
+| `--output-dir <dir>` | required | Where generated map JSON files and `manifest.csv` are written |
+| `--label <name>` | the config's filename | Tag written into `manifest.csv` and used in output filenames |
+| `--max-attempts <N>` | `count * 20` | Bounded attempt budget — never loops unboundedly |
+
+Prints `GenerationStats` (raw validity rate, post-repair acceptance rate,
+...) as JSON to stdout. See
+[`docs/PROCEDURAL_GENERATION.md`](docs/PROCEDURAL_GENERATION.md) for the
+generation algorithm, the three map families (open/clustered/chokepoint —
+the same generator, different config values), the structural + geometric
+validity checker, the bounded repair strategy, and the full
+expressive-range analysis (`scripts/analyze_generated_maps.py`,
+`docs/procgen_analysis/`).
+
 ## Architecture overview
 
 ```
@@ -227,6 +263,8 @@ to mutate it directly).
    ├─ ai/        Steering, unit behaviors,
    │             BaselineTeamStrategy, UtilityTeamStrategy,
    │             TeamShipController
+   ├─ procgen/   MapGenerator, MapValidity, MapRepair,
+   │             GenerationPipeline, MapMetrics
    └─ headless/  MatchRunner/MatchResult,
                  TeamMatchRunner/TeamMatchResult
             │                                                 │
@@ -259,7 +297,8 @@ counts and sanitizer usage.
 - [x] **Milestone 1** — Minimal playable two-player graphical game, simulation/rendering separation
 - [x] **Milestone 2** — Shared controller interface, headless execution, deterministic simulation, JSON configuration and map loading
 - [x] **Milestone 3** — Functional obstacles, a Team Resource Battle mode (3v3), rule-based unit AI, and a strategic team-AI layer evaluated against a baseline
-- [ ] **Milestone 4** — Procedural arena generation; reinforcement-learning-based agents
+- [x] **Milestone 4** — Parameterized procedural map generation (3 map families), an automatic structural/geometric validity checker with bounded repair, and an expressive-range analysis of 200+ generated maps
+- [ ] **Milestone 5** — Comparative study of AI algorithms (the existing rule-based AI is unchanged throughout Milestone 4)
 
 ## License and acknowledgments
 

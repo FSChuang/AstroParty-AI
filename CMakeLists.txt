@@ -83,6 +83,13 @@ add_library(astroparty_sim STATIC
     src/ai/TeamStrategyFactory.cpp
     src/ai/TeamControllerFactory.cpp
     src/ai/TeamShipController.cpp
+    src/procgen/MapGeneratorConfig.cpp
+    src/procgen/OccupancyGrid.cpp
+    src/procgen/MapGenerator.cpp
+    src/procgen/MapValidity.cpp
+    src/procgen/MapRepair.cpp
+    src/procgen/GenerationPipeline.cpp
+    src/procgen/MapMetrics.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -139,6 +146,12 @@ target_link_libraries(AstroPartyAI PRIVATE astroparty_platform astroparty_warnin
 # scripts). See docs/ARCHITECTURE.md for its JSON result format.
 add_executable(AstroPartyAI-headless src/headless_main.cpp)
 target_link_libraries(AstroPartyAI-headless PRIVATE astroparty_sim astroparty_warnings astroparty_sanitizers)
+
+# --- Map generator executable -----------------------------------------------
+# Links astroparty_sim only, exactly like AstroPartyAI-headless -- batch map
+# generation never requires a display either. See docs/PROCEDURAL_GENERATION.md.
+add_executable(AstroPartyAI-mapgen src/mapgen_main.cpp)
+target_link_libraries(AstroPartyAI-mapgen PRIVATE astroparty_sim astroparty_warnings astroparty_sanitizers)
 
 if(ASTROPARTY_BUILD_TESTS)
     enable_testing()

@@ -1,0 +1,98 @@
+{
+  "family:open": {
+    "label": "open",
+    "totalAttempts": 40,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 40,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 40,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  },
+  "family:clustered": {
+    "label": "clustered",
+    "totalAttempts": 40,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 40,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 40,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  },
+  "family:chokepoint": {
+    "label": "chokepoint",
+    "totalAttempts": 40,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 40,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 40,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  },
+  "density:low": {
+    "label": "density_low",
+    "totalAttempts": 15,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 15,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 15,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  },
+  "density:medium": {
+    "label": "density_medium",
+    "totalAttempts": 15,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 15,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 15,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  },
+  "density:high": {
+    "label": "density_high",
+    "totalAttempts": 15,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 15,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 15,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  },
+  "symmetry:symmetric": {
+    "label": "symmetric",
+    "totalAttempts": 20,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 20,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 20,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  },
+  "symmetry:asymmetric": {
+    "label": "asymmetric",
+    "totalAttempts": 20,
+    "structurallyInvalid": 0,
+    "geometricallyInvalid": 0,
+    "validRaw": 20,
+    "repaired": 0,
+    "rejected": 0,
+    "accepted": 20,
+    "rawValidityRate": 1,
+    "postRepairAcceptanceRate": 1
+  }
+}

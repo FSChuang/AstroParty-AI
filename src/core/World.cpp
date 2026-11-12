@@ -13,39 +13,11 @@ World::World() : World(SimulationConfig{}, MapDefinition::defaultTwoShipMap()) {
 World::World(SimulationConfig config, MapDefinition map) : config_(config), map_(std::move(map)) {
     config_.arenaSize = map_.arenaSize;  // The map is the single source of truth for arena bounds.
     if (config_.mode == GameMode::TeamResourceBattle) {
-        validateTeamResourceBattleRequirements();
+        validateTeamResourceBattleStructure(map_);
     }
     spawnInitialShips();
     spawnInitialResources();
     respawnTicksRemaining_.assign(ships_.size(), 0);
-}
-
-void World::validateTeamResourceBattleRequirements() const {
-    std::array<int, 2> shipsPerTeam{0, 0};
-    for (const ShipSpawnPoint& spawn : map_.shipSpawns) {
-        if (spawn.teamId != 0 && spawn.teamId != 1) {
-            throw std::invalid_argument(
-                "Team Resource Battle requires every ship spawn to belong to team 0 or team 1");
-        }
-        ++shipsPerTeam[static_cast<std::size_t>(spawn.teamId)];
-    }
-    if (shipsPerTeam[0] != 3 || shipsPerTeam[1] != 3) {
-        throw std::invalid_argument("Team Resource Battle requires exactly three ships per team (3v3)");
-    }
-
-    bool team0HasHome = false;
-    bool team1HasHome = false;
-    for (const HomeRegion& home : map_.homeRegions) {
-        if (home.teamId == 0) team0HasHome = true;
-        if (home.teamId == 1) team1HasHome = true;
-    }
-    if (!team0HasHome || !team1HasHome) {
-        throw std::invalid_argument("Team Resource Battle requires a home region for both team 0 and team 1");
-    }
-
-    if (map_.resourceSpawnPoints.empty()) {
-        throw std::invalid_argument("Team Resource Battle requires at least one resource spawn point");
-    }
 }
 
 void World::spawnInitialShips() {

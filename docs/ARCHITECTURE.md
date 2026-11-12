@@ -30,7 +30,7 @@ of the SDL-dependent code at all.
                 │             │              │
                 └─────────────┼──────────────┘
                                ▼
-                 core / entities / physics / ai / headless
+              core / entities / physics / ai / procgen / headless
                        (no SDL anywhere in here)
                                ▲
                                │
@@ -86,6 +86,18 @@ of the SDL-dependent code at all.
   `ai::makeTeamControllers` and `headless::runTeamMatch` for Team Resource
   Battle, printing the resulting JSON result either way. It links
   `astroparty_sim` only.
+
+- **`procgen`** (also part of `astroparty_sim`, also SDL-free): the
+  Milestone 4 procedural Team Resource Battle map generator -- a
+  parameterized generator, a structural + geometric validity checker,
+  bounded repair, a generate/validate/accept/repair/reject pipeline, and
+  expressive-range metrics, plus `src/mapgen_main.cpp`
+  (`AstroPartyAI-mapgen`), its own composition root alongside
+  `headless_main.cpp`. It produces ordinary `MapDefinition` values --
+  consumed by `World` exactly like a hand-authored map, with no
+  randomness anywhere once a match starts. See
+  [`docs/PROCEDURAL_GENERATION.md`](PROCEDURAL_GENERATION.md) for the full
+  design; this file does not repeat it.
 
 ## Controller architecture
 
@@ -509,9 +521,14 @@ validation/loading, `ScriptedShipController`, the `ai/` module (steering
 primitives, `moveToward`/`pursueAndAttack`, both team strategies' role
 assignment and dynamic reassignment, `TeamShipController`), and both
 `headless::runMatch` and `headless::runTeamMatch` (win, draw, timeout,
-determinism, and result serialization) -- all without creating a window.
-See `README.md` for exact build and test commands, current test/assertion
-counts, and sanitizer usage.
+determinism, and result serialization), and the `procgen/` module (RNG
+determinism, config validation, grid connectivity, generator placement
+correctness and edge cases, geometric validity against hand-built
+connected/disconnected maps, repair, the full pipeline's accounting
+invariants and bounded termination, and metrics against geometries with
+known expected values -- see `docs/PROCEDURAL_GENERATION.md`'s "Testing"
+section) -- all without creating a window. See `README.md` for exact build
+and test commands, current test/assertion counts, and sanitizer usage.
 
 ## Continuous integration
 
