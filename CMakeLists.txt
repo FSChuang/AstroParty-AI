@@ -80,6 +80,8 @@ add_library(astroparty_sim STATIC
     src/ai/TeamObservations.cpp
     src/ai/BaselineTeamStrategy.cpp
     src/ai/UtilityTeamStrategy.cpp
+    src/ai/FixedRoleTeamStrategy.cpp
+    src/ai/HysteresisTeamStrategy.cpp
     src/ai/TeamStrategyFactory.cpp
     src/ai/TeamControllerFactory.cpp
     src/ai/TeamShipController.cpp
@@ -90,6 +92,7 @@ add_library(astroparty_sim STATIC
     src/procgen/MapRepair.cpp
     src/procgen/GenerationPipeline.cpp
     src/procgen/MapMetrics.cpp
+    src/diagnostics/MatchDiagnostics.cpp
 )
 target_include_directories(astroparty_sim PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

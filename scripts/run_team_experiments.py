@@ -102,8 +102,9 @@ def parse_args():
     parser.add_argument("--config", default="configs/team_resource_battle.json")
     parser.add_argument("--map", dest="map_path", default="configs/maps/team_arena.json")
     parser.add_argument("--max-ticks", type=int, default=3600)
-    parser.add_argument("--team0-strategy", choices=["strategic", "baseline"], default="strategic")
-    parser.add_argument("--team1-strategy", choices=["strategic", "baseline"], default="baseline")
+    strategy_choices = ["strategic", "baseline", "fixed", "hysteresis"]
+    parser.add_argument("--team0-strategy", choices=strategy_choices, default="strategic")
+    parser.add_argument("--team1-strategy", choices=strategy_choices, default="baseline")
     parser.add_argument("--runs", type=int, default=20)
     parser.add_argument("--csv", default=None, help="Optional path to write a per-run CSV of results")
     return parser.parse_args()

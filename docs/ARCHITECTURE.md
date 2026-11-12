@@ -30,7 +30,7 @@ of the SDL-dependent code at all.
                 │             │              │
                 └─────────────┼──────────────┘
                                ▼
-              core / entities / physics / ai / procgen / headless
+         core / entities / physics / ai / procgen / diagnostics / headless
                        (no SDL anywhere in here)
                                ▲
                                │
@@ -450,6 +450,20 @@ it unchanged), and `World(SimulationConfig, MapDefinition)` for everything
 else. A map's `arenaSize` always wins over the config's, so the two can never
 disagree about the playfield bounds.
 
+### Milestone 5: two more strategies, and a diagnostics layer
+
+`ai::makeTeamStrategyByName` now also builds `FixedRoleTeamStrategy`
+(`"fixed"`) and `HysteresisTeamStrategy` (`"hysteresis"`), alongside the
+unchanged `"baseline"`/`"strategic"`. `diagnostics::runInstrumentedTeamMatch`
+(`diagnostics/MatchDiagnostics.hpp`, also SDL-free, part of `astroparty_sim`)
+is a drop-in instrumented replacement for `headless::runTeamMatch` that
+additionally records per-ship shots fired, obstacle contact events,
+low-progress ticks, role changes, and resource delivery latency, exposed
+via `AstroPartyAI-headless --diagnostics`. See
+[`docs/AI_EVALUATION.md`](AI_EVALUATION.md) for the full design rationale,
+the AI audit that motivated it, and the resulting experiment results; this
+file does not repeat it.
+
 ## Why a fixed timestep
 
 `Application::run()` measures real elapsed wall-clock time with
@@ -518,17 +532,20 @@ validation, pickup/delivery/scoring/drop-on-elimination/respawn/reset,
 cumulative metrics), `World`'s Classic Deathmatch orchestration (including
 map-driven spawning), `SimulationConfig` and `MapDefinition`
 validation/loading, `ScriptedShipController`, the `ai/` module (steering
-primitives, `moveToward`/`pursueAndAttack`, both team strategies' role
-assignment and dynamic reassignment, `TeamShipController`), and both
-`headless::runMatch` and `headless::runTeamMatch` (win, draw, timeout,
-determinism, and result serialization), and the `procgen/` module (RNG
-determinism, config validation, grid connectivity, generator placement
-correctness and edge cases, geometric validity against hand-built
+primitives, `moveToward`/`pursueAndAttack`, all four team strategies' role
+assignment, dynamic reassignment, and hysteresis commitment behavior,
+`TeamShipController`), both `headless::runMatch` and `headless::runTeamMatch`
+(win, draw, timeout, determinism, and result serialization), the `procgen/`
+module (RNG determinism, config validation, grid connectivity, generator
+placement correctness and edge cases, geometric validity against hand-built
 connected/disconnected maps, repair, the full pipeline's accounting
 invariants and bounded termination, and metrics against geometries with
 known expected values -- see `docs/PROCEDURAL_GENERATION.md`'s "Testing"
-section) -- all without creating a window. See `README.md` for exact build
-and test commands, current test/assertion counts, and sanitizer usage.
+section), and `diagnostics::runInstrumentedTeamMatch` (the five Milestone 5
+scenario tests, cache-collapsing correctness, and JSON serialization -- see
+`docs/AI_EVALUATION.md`'s "Diagnostics" section) -- all without creating a
+window. See `README.md` for exact build and test commands, current
+test/assertion counts, and sanitizer usage.
 
 ## Continuous integration
 

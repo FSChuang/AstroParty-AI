@@ -14,11 +14,15 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include "astroparty/ai/TeamControllerFactory.hpp"
+#include "astroparty/ai/TeamStrategyFactory.hpp"
 #include "astroparty/core/GameMode.hpp"
 #include "astroparty/core/MapDefinition.hpp"
 #include "astroparty/core/SimulationConfig.hpp"
 #include "astroparty/core/World.hpp"
+#include "astroparty/diagnostics/MatchDiagnostics.hpp"
 #include "astroparty/headless/MatchRunner.hpp"
 #include "astroparty/headless/TeamMatchRunner.hpp"
 #include "astroparty/input/ScriptedShipController.hpp"
@@ -38,6 +42,12 @@ struct CommandLineOptions {
     std::optional<std::string> outputPath;
     std::string team0Strategy = "strategic";
     std::string team1Strategy = "baseline";
+    // When set, runs diagnostics::runInstrumentedTeamMatch instead of
+    // headless::runTeamMatch and emits {"result": ..., "diagnostics": ...}
+    // instead of the bare TeamMatchResult -- see docs/AI_EVALUATION.md for
+    // what each diagnostics field means. Ignored (and rejected) outside
+    // GameMode::TeamResourceBattle.
+    bool diagnostics = false;
 };
 
 CommandLineOptions parseCommandLine(int argc, char** argv) {
@@ -58,6 +68,8 @@ CommandLineOptions parseCommandLine(int argc, char** argv) {
             options.team0Strategy = argv[++i];
         } else if (argument == "--team1-strategy" && hasNext) {
             options.team1Strategy = argv[++i];
+        } else if (argument == "--diagnostics") {
+            options.diagnostics = true;
         } else {
             throw std::invalid_argument("Unrecognized or incomplete argument: " + argument);
         }
@@ -103,10 +115,24 @@ int main(int argc, char** argv) {
         std::string json;
         if (world.mode() == astroparty::core::GameMode::TeamResourceBattle) {
             auto controllers = astroparty::ai::makeTeamControllers(world, options.team0Strategy, options.team1Strategy);
-            const astroparty::headless::TeamMatchResult result =
-                astroparty::headless::runTeamMatch(world, controllers, options.maxTicks);
-            json = result.toJsonString();
+            if (options.diagnostics) {
+                auto team0Strategy = astroparty::ai::makeTeamStrategyByName(options.team0Strategy);
+                auto team1Strategy = astroparty::ai::makeTeamStrategyByName(options.team1Strategy);
+                const auto [result, diagnostics] = astroparty::diagnostics::runInstrumentedTeamMatch(
+                    world, controllers, options.maxTicks, team0Strategy, team1Strategy);
+                nlohmann::json combined;
+                combined["result"] = nlohmann::json::parse(result.toJsonString());
+                combined["diagnostics"] = nlohmann::json::parse(diagnostics.toJsonString());
+                json = combined.dump(2);
+            } else {
+                const astroparty::headless::TeamMatchResult result =
+                    astroparty::headless::runTeamMatch(world, controllers, options.maxTicks);
+                json = result.toJsonString();
+            }
         } else {
+            if (options.diagnostics) {
+                throw std::invalid_argument("--diagnostics is only supported for Team Resource Battle matches");
+            }
             auto controllers = makeDefaultControllers(world.ships().size());
             const astroparty::headless::MatchResult result = astroparty::headless::runMatch(world, controllers, options.maxTicks);
             json = result.toJsonString();

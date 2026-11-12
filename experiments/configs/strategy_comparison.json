@@ -1,0 +1,10 @@
+{
+  "description": "Milestone 5 strategy comparison: every pairing of {fixed, strategic, hysteresis}, both side assignments, across procedurally generated maps from each of the three families.",
+  "strategies": ["fixed", "strategic", "hysteresis"],
+  "families": ["open", "clustered", "chokepoint"],
+  "mapsPerFamily": 20,
+  "seedStart": 1000,
+  "maxTicks": 3600,
+  "simulationConfig": "configs/team_resource_battle.json",
+  "generatorConfigsDir": "configs/procgen"
+}

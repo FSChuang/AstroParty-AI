@@ -1,0 +1,10 @@
+strategyA,strategyB,family,maps,meanWinRateDiffAminusB,ci95Low,ci95High
+fixed,strategic,open,20,-0.3,-0.525,-0.075
+fixed,strategic,clustered,20,-0.6,-0.775,-0.375
+fixed,strategic,chokepoint,20,-0.475,-0.675,-0.3
+fixed,hysteresis,open,20,-0.4,-0.625,-0.15
+fixed,hysteresis,clustered,20,-0.575,-0.725,-0.4
+fixed,hysteresis,chokepoint,20,-0.6,-0.725,-0.475
+strategic,hysteresis,open,20,-0.05,-0.225,0.125
+strategic,hysteresis,clustered,20,-0.025,-0.15,0.1
+strategic,hysteresis,chokepoint,20,-0.225,-0.4,-0.05
