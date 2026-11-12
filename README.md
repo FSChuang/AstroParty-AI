@@ -41,11 +41,19 @@ automated AI-vs-AI evaluation possible in the first place.
   checker with bounded obstacle-removal repair, and a stdlib+matplotlib
   analysis script (`scripts/analyze_generated_maps.py`) — see
   [`docs/PROCEDURAL_GENERATION.md`](docs/PROCEDURAL_GENERATION.md)
-- A rule-based **3v3 AI module** (`ai/`): shared steering/movement primitives,
-  a utility-based strategic team AI that dynamically assigns Collector /
-  Defender / Interceptor / Escort roles every tick from publicly observable
-  match state, and a simpler fixed-role baseline AI for fair comparison —
-  no neural networks, no learned policies, fully deterministic
+- A rule-based **3v3 AI module** (`ai/`) with **four selectable team
+  strategies** sharing the same steering/movement primitives: `baseline`
+  (simpler fixed-role opponent), `strategic` (utility-based, dynamically
+  assigns Collector / Defender / Interceptor / Escort roles every tick),
+  `fixed` (a literally fixed role-by-index assignment, never reassigned),
+  and `hysteresis` (`strategic`'s same logic, plus role commitment to
+  resist threshold oscillation) — no neural networks, no learned
+  policies, fully deterministic; see
+  [`docs/AI_EVALUATION.md`](docs/AI_EVALUATION.md)
+- A **match diagnostics** module (`diagnostics/`): precisely-defined,
+  per-ship measurements (low-progress ticks, shots fired, obstacle
+  contacts, role changes, resource delivery latency) for any Team
+  Resource Battle match, exposed via `AstroPartyAI-headless --diagnostics`
 - A simulation library (`astroparty_sim`) with **no SDL dependency**,
   independently unit-tested
 - `IShipController`: one shared action interface for human keyboard input,
@@ -54,8 +62,11 @@ automated AI-vs-AI evaluation possible in the first place.
   the simulation directly
 - A headless executable (`AstroPartyAI-headless`) that plays a full Classic
   Deathmatch or Team Resource Battle match with no window and exports a
-  structured JSON result, plus a stdlib-only Python script
-  (`scripts/run_team_experiments.py`) for batch win-rate/score experiments
+  structured JSON result (optionally including the full diagnostics
+  above), plus two stdlib-only Python scripts
+  (`scripts/run_team_experiments.py`, `scripts/run_strategy_comparison.py`)
+  for batch win-rate/score experiments and a 4-strategy, 3-map-family
+  comparison study (`experiments/`)
 - Deterministic, reproducible simulation: no randomness anywhere in the
   core loop, verified by automated replay tests
 - JSON-loadable, validated simulation configuration (`SimulationConfig`)
@@ -133,8 +144,8 @@ controller — this mode has no keyboard input):
 | `--mode <classic\|team>` | `classic` | Which game mode to run |
 | `--config <path>` | `configs/team_resource_battle.json` | `SimulationConfig` for `--mode team` |
 | `--map <path>` | `configs/maps/team_arena.json` | `MapDefinition` for `--mode team` |
-| `--team0-strategy <strategic\|baseline>` | `strategic` | Team 0's AI |
-| `--team1-strategy <strategic\|baseline>` | `baseline` | Team 1's AI |
+| `--team0-strategy <name>` | `strategic` | Team 0's AI — `strategic`, `baseline`, `fixed`, or `hysteresis` |
+| `--team1-strategy <name>` | `baseline` | Team 1's AI — same choices |
 
 ## Controls
 
@@ -195,8 +206,9 @@ Team Resource Battle (strategic AI vs. baseline AI, 3v3):
 | `--map <path>` | built-in two-ship layout | A `MapDefinition` JSON file |
 | `--max-ticks <N>` | `3600` | Fixed-step budget before declaring a timeout |
 | `--output <path>` | stdout | Where to write the JSON result |
-| `--team0-strategy <strategic\|baseline>` | `strategic` | Team 0's AI (Team Resource Battle only) |
-| `--team1-strategy <strategic\|baseline>` | `baseline` | Team 1's AI (Team Resource Battle only) |
+| `--team0-strategy <name>` | `strategic` | Team 0's AI (Team Resource Battle only) — `strategic`, `baseline`, `fixed`, or `hysteresis` |
+| `--team1-strategy <name>` | `baseline` | Team 1's AI (Team Resource Battle only) — same choices |
+| `--diagnostics` | off | Team Resource Battle only: emit `{"result": ..., "diagnostics": ...}` with per-ship AI diagnostics (see `docs/AI_EVALUATION.md`) instead of the bare result |
 
 Because this binary links only the simulation library — never SDL2 — it
 runs anywhere, including CI containers, and can be invoked repeatedly by an
@@ -221,6 +233,28 @@ simulation, headless runner, or graphical app needs to change to add a new
 kind of controller. See `docs/ARCHITECTURE.md` for the interface and its
 guarantees (a controller can observe the full match state but has no path
 to mutate it directly).
+
+## AI strategy comparison (Milestone 5)
+
+`scripts/run_strategy_comparison.py` reproduces the full study: generates
+20 procedurally generated maps per family (open/clustered/chokepoint) and
+runs every pairing of `strategic`/`fixed`/`hysteresis`, both side
+assignments, on each one (360 matches total, subprocess calls only — no
+gameplay or AI logic reimplemented in Python):
+
+```sh
+python3 scripts/run_strategy_comparison.py \
+  --mapgen-executable build/AstroPartyAI-mapgen \
+  --headless-executable build/AstroPartyAI-headless
+```
+
+Writes `experiments/results/matches.csv` (one row per match) and
+`experiments/analysis/` (win-rate/pairwise-comparison CSVs and plots,
+bootstrapped over maps — not over individual matches, since the two
+side-swapped matches per map are a paired observation, not two
+independent samples). See [`docs/AI_EVALUATION.md`](docs/AI_EVALUATION.md)
+for the AI architecture audit, the diagnostics that motivated each new
+strategy, and the actual results.
 
 ## Procedural map generation
 
@@ -260,11 +294,11 @@ expressive-range analysis (`scripts/analyze_generated_maps.py`,
    │             MatchState, TeamMatchState          └─ input/      Keyboard controller
    ├─ entities/  Ship, Bullet, Resource
    ├─ physics/   Arena bounds, collision, obstacles
-   ├─ ai/        Steering, unit behaviors,
-   │             BaselineTeamStrategy, UtilityTeamStrategy,
-   │             TeamShipController
+   ├─ ai/        Steering, unit behaviors, TeamShipController,
+   │             Baseline/Utility/FixedRole/Hysteresis TeamStrategy
    ├─ procgen/   MapGenerator, MapValidity, MapRepair,
    │             GenerationPipeline, MapMetrics
+   ├─ diagnostics/ MatchDiagnostics (instrumented match runner)
    └─ headless/  MatchRunner/MatchResult,
                  TeamMatchRunner/TeamMatchResult
             │                                                 │
@@ -298,7 +332,8 @@ counts and sanitizer usage.
 - [x] **Milestone 2** — Shared controller interface, headless execution, deterministic simulation, JSON configuration and map loading
 - [x] **Milestone 3** — Functional obstacles, a Team Resource Battle mode (3v3), rule-based unit AI, and a strategic team-AI layer evaluated against a baseline
 - [x] **Milestone 4** — Parameterized procedural map generation (3 map families), an automatic structural/geometric validity checker with bounded repair, and an expressive-range analysis of 200+ generated maps
-- [ ] **Milestone 5** — Comparative study of AI algorithms (the existing rule-based AI is unchanged throughout Milestone 4)
+- [x] **Milestone 5** — Per-ship AI diagnostics, two new team strategies (fixed-role and utility-with-hysteresis) compared against the existing baseline/strategic AI across 360 matches on 60 generated maps
+- [ ] **Milestone 6** — Reinforcement-learning-based agents; wider-scale experiments
 
 ## License and acknowledgments
 
