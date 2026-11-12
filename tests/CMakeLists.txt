@@ -39,6 +39,9 @@ add_executable(astroparty_tests
     test_map_repair.cpp
     test_generation_pipeline.cpp
     test_map_metrics.cpp
+    test_fixed_role_strategy.cpp
+    test_hysteresis_strategy.cpp
+    test_match_diagnostics.cpp
 )
 target_link_libraries(astroparty_tests PRIVATE
     astroparty_sim
